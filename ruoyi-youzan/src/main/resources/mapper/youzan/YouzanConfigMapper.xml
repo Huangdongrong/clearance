@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.YouzanConfigMapper">
+    <resultMap type="YouzanConfig" id="YouzanConfigResult">
+        <id     property="id"      column="id"  jdbcType="VARCHAR"/>
+        <result property="clientKey"    column="client_key"   jdbcType="VARCHAR"/>
+        <result property="clientSecret"     column="client_secret"   jdbcType="VARCHAR"/>
+        <result property="name"    column="name"   jdbcType="VARCHAR"/>
+        <result property="code"    column="code"   jdbcType="VARCHAR"/>
+        <result property="payName"    column="pay_name"   jdbcType="VARCHAR"/>
+        <result property="payCode"    column="pay_code"   jdbcType="VARCHAR"/>
+        <result property="remark"    column="remark"   jdbcType="VARCHAR"/>
+        <result property="createBy"      column="create_by"   jdbcType="VARCHAR" />
+        <result property="createTime"    column="create_time"  jdbcType="VARCHAR"/>
+        <result property="updateBy"      column="update_by"   jdbcType="VARCHAR"/>
+        <result property="updateTime"    column="update_time"  jdbcType="TIMESTAMP"/>
+    </resultMap>
+    
+    <sql id="selectYzConfigVo">
+        select `id`, `client_key`, `client_secret`, `code`, `name`, `pay_code`, `pay_name`,
+        `create_by`, `create_time`,  `update_by`, `update_time`, `remark`
+        from qm_yz_config
+    </sql>
+    
+    <select id="getOne" resultMap="YouzanConfigResult">
+        <include refid="selectYzConfigVo"/>
+        ORDER BY `update_time` DESC
+        LIMIT 1
+    </select>
+    
+    <update id="update" parameterType="YouzanConfig">
+        update qm_yz_config 
+        <set> 
+            <if test='clientKey != null and clientKey != ""'>
+                `client_key`=#{clientKey,jdbcType=VARCHAR}, 
+            </if>
+            <if test='clientSecret != null and clientSecret != ""'>
+                `client_secret`=#{clientSecret,jdbcType=VARCHAR},
+            </if>
+            <if test='name != null and name != ""'>
+                `name`=#{name,jdbcType=VARCHAR},
+            </if>
+            <if test='code != null and code != ""'>
+                `code`=#{code,jdbcType=VARCHAR},
+            </if>
+            <if test='payName != null and payName != ""'>
+                `pay_name`=#{payName,jdbcType=VARCHAR},
+            </if>
+            <if test='payCode != null and payCode != ""'>
+                `pay_code`=#{payCode,jdbcType=VARCHAR},
+            </if>
+            <if test='remark != null and remark != ""'>
+                `remark`=#{remark,jdbcType=VARCHAR},
+            </if>
+            <if test='createBy != null and createBy != ""'>
+                `create_by`=#{createBy,jdbcType=VARCHAR},
+            </if>
+            <if test='updateBy != null and updateBy != ""'>
+                `update_by`=#{updateBy,jdbcType=VARCHAR},
+            </if>
+            <if test='createTime != null'>
+                `create_time`=#{createTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test='updateTime != null'>
+                `update_time`=#{updateTime,jdbcType=TIMESTAMP}
+            </if>
+        </set>
+        where `id`= #{id,jdbcType=VARCHAR}
+    </update>
+    
+</mapper>    

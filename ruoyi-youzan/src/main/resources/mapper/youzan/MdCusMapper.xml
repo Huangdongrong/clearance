@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.MdCusMapper">
+    <select id="getCusCodeByAuthId"  parameterType="String" resultType="String">
+        select c.`ke_hu_bian_ma` from md_cus c 
+        where 1 = 1
+        <if test='authId != null and authId != ""'>
+            AND c.`plat_kdt` = #{authId,jdbcType=VARCHAR}
+        </if>
+        order by c.`update_date` desc limit 1
+    </select>
+</mapper>

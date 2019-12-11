@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.YouzanOrderBkMapper">
+    <resultMap type="YouzanOrder" id="YouzanOrderResult">
+        <id     property="id"      column="id"      />
+        <result property="tid"    column="tid"    />
+        <result property="orderNo"     column="order_no"     />
+        <result property="copNo"     column="cop_no"     />
+        <result property="transaction"   column="transaction"   />
+        <result property="seperated" column="seperated"/>
+        <result property="kdtId"    column="kdt_id"    />
+        <result property="amount"    column="amount"    />
+        <result property="status" column="status" />
+        <result property="statusMessage" column="status_message" />
+        <result property="wayBillEnt" column="way_bill_ent" />
+        <result property="wayBillNo" column="way_bill_no" />
+        <result property="body" column="body" typeHandler="com.ruoyi.yz.mybatis.CEB311MessageTypeHandler"/>
+        <result property="alreadySyncPay" column="already_sync_pay"/>
+        <result property="syncPayStatus" column="sync_pay_status" typeHandler="com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler"/>
+        <result property="alreadySyncOrder" column="already_sync_order"/>        
+        <result property="syncOrderStatus" column="sync_order_status" typeHandler="com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler"/>
+        <result property="alreadySyncWuliu" column="already_sync_wuliu"/>        
+        <result property="syncWuliuStatus" column="sync_wuliu_status" typeHandler="com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler"/>
+        <result property="alreadySyncDetails" column="already_sync_details"/>           
+        <result property="syncDetailsStatus" column="sync_details_status" typeHandler="com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler"/>
+        <result property="remark"    column="remark"    />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+    
+    <insert id="batchInsert" parameterType="List">
+        insert into qm_yz_order_bk(`id`, `tid`, `order_no`, `cop_no`, `transaction`, `kdt_id`, `amount`, `status`, `way_bill_ent`, `way_bill_no`,
+        `already_sync_pay`, `already_sync_order`, `already_sync_wuliu`,`already_sync_details`,
+        `sync_pay_status`, `sync_order_status`, `sync_wuliu_status`, `sync_details_status`, `body`, `status_message`, `seperated`,
+        `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+        values
+        <foreach collection="orders" item="order" separator=",">
+            (
+            #{order.id,jdbcType=VARCHAR}, #{order.tid,jdbcType=VARCHAR}, #{order.orderNo,jdbcType=VARCHAR}, #{order.copNo,jdbcType=VARCHAR}, #{order.transaction,jdbcType=VARCHAR}, #{order.kdtId,jdbcType=VARCHAR},
+            #{order.amount,jdbcType=VARCHAR}, #{order.status,jdbcType=VARCHAR},
+            #{order.wayBillEnt, jdbcType=VARCHAR}, #{order.wayBillNo, jdbcType=VARCHAR}, 
+            #{order.alreadySyncPay,jdbcType=BIT}, #{order.alreadySyncOrder,jdbcType=BIT},
+            #{order.alreadySyncWuliu,jdbcType=BIT}, #{order.alreadySyncDetails,jdbcType=BIT},
+            #{order.syncPayStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},
+            #{order.syncOrderStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},
+            #{order.syncWuliuStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},    
+            #{order.syncDetailsStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},             
+            #{order.body,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.CEB311MessageTypeHandler},
+            #{order.statusMessage, jdbcType=VARCHAR}, #{order.seperated, jdbcType=BIT},
+            #{order.createBy,jdbcType=VARCHAR}, #{order.createTime,jdbcType=TIMESTAMP}, #{order.updateBy,jdbcType=VARCHAR}, #{order.updateTime,jdbcType=TIMESTAMP}, #{order.remark,jdbcType=VARCHAR}
+            )
+        </foreach>
+    </insert>
+</mapper>

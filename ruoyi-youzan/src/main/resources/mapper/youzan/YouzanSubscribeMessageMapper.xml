@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.YouzanSubscribeMessageMapper">
+    <resultMap type="YouzanSubscribeMessage" id="YouzanSubscribeMessageResult">
+        <id     property="id"      column="id"      />
+        <result property="orderNo"    column="order_no"    />
+        <result property="buyerPhone"     column="buyer_phone"     />
+        <result property="kdtId"     column="kdt_id"     />
+        <result property="shopDisPlayNo" column="shop_display_no" />
+        <result property="appId"     column="app_id"     />
+        <result property="buyerId"     column="buyer_id"     />
+        <result property="type"     column="type"     />
+        <result property="skuVersionText"     column="sku_version_text"     />
+        <result property="skuIntervalText"     column="sku_interval_text"     />
+        <result property="payTime"     column="pay_time"     />
+        <result property="price"     column="price"     />
+        <result property="status"     column="status"     />
+        <result property="remark"    column="remark"    />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+    <sql id="selectYzMessageVo">
+        select `id`, `order_no`, `buyer_phone`, `kdt_id`, `shop_display_no`, `app_id`, `buyer_id`, `type`, `sku_version_text`, `sku_interval_text`, 
+               `pay_time`, `price`, `status`, `remark`, `create_by`, `create_time`, `update_by`, `update_time`, `remark` 
+        from qm_yz_message
+    </sql>
+    
+    <select id="getOne"  parameterType="String" resultMap="YouzanSubscribeMessageResult">
+        <include refid="selectYzMessageVo"/>
+        where `type` = 'APP_SUBSCRIBE'
+        <if test='kdtId != null and kdtId != ""'>
+            AND `kdt_id`=#{kdtId,jdbcType=VARCHAR}
+        </if>
+        order by `update_time` desc limit 1
+    </select>
+    
+    <insert id="insert" parameterType="YouzanSubscribeMessage">
+        insert into qm_yz_message(`id`, `order_no`, `buyer_phone`, `kdt_id`, `shop_display_no`, `app_id`, `buyer_id`, `type`, `sku_version_text`, `sku_interval_text`, 
+                                 `pay_time`, `price`, `status`, `remark`, `create_by`, `create_time`, `update_by`, `update_time`)
+        values(#{id,jdbcType=VARCHAR}, #{orderNo,jdbcType=VARCHAR}, #{buyerPhone,jdbcType=VARCHAR}, #{kdtId,jdbcType=VARCHAR}, #{shopDisPlayNo,jdbcType=VARCHAR},
+               #{appId,jdbcType=VARCHAR}, #{buyerId,jdbcType=VARCHAR}, #{type,jdbcType=VARCHAR}, #{skuVersionText,jdbcType=VARCHAR},
+               #{skuIntervalText,jdbcType=VARCHAR}, #{payTime,jdbcType=TIMESTAMP}, #{price,jdbcType=BIGINT}, #{status,jdbcType=VARCHAR}, 
+               #{remark,jdbcType=VARCHAR}, #{createBy,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateBy,jdbcType=VARCHAR}, 
+               #{updateTime,jdbcType=TIMESTAMP})
+    </insert>
+    
+    <update id="update" parameterType="YouzanSubscribeMessage">
+        update qm_yz_message 
+        <set> 
+            <if test='orderNo != null and orderNo != ""'>
+                `order_no`=#{orderNo,jdbcType=VARCHAR}, 
+            </if>
+            <if test='buyerPhone != null and buyerPhone != ""'>
+                `buyer_phone`=#{buyerPhone,jdbcType=VARCHAR}, 
+            </if>
+            <if test='kdtId != null and kdtId != ""'>
+                `kdt_id`=#{kdtId,jdbcType=VARCHAR}, 
+            </if>
+            <if test='shopDisPlayNo != null and shopDisPlayNo != ""'>
+                `shop_display_no`=#{shopDisPlayNo,jdbcType=VARCHAR}, 
+            </if>
+            <if test='appId != null and appId != ""'>
+                `app_id`=#{appId,jdbcType=VARCHAR}, 
+            </if>
+            <if test='buyerId != null and buyerId != ""'>
+                `buyer_id`=#{buyerId,jdbcType=VARCHAR}, 
+            </if>
+            <if test='type != null and type != ""'>
+                `type`=#{type,jdbcType=VARCHAR}, 
+            </if>
+            <if test='skuVersionText != null and skuVersionText != ""'>
+                `sku_version_text`=#{skuVersionText,jdbcType=VARCHAR}, 
+            </if>
+            <if test='skuIntervalText != null and skuIntervalText != ""'>
+                `sku_interval_text`=#{skuIntervalText,jdbcType=VARCHAR}, 
+            </if>
+            <if test='payTime != null'>
+                `pay_time`=#{payTime,jdbcType=TIMESTAMP}, 
+            </if>
+            <if test='price != null'>
+                `price`=#{price,jdbcType=BIGINT}, 
+            </if>
+            <if test='status != null and status != ""'>
+                `status`=#{status,jdbcType=VARCHAR}, 
+            </if>
+            <if test='remark != null and remark != ""'>
+                `remark`=#{remark,jdbcType=VARCHAR},
+            </if>
+            <if test='createBy != null and createBy != ""'>
+                `create_by`=#{createBy,jdbcType=VARCHAR},
+            </if>
+            <if test='updateBy != null and updateBy != ""'>
+                `update_by`=#{updateBy,jdbcType=VARCHAR},
+            </if>
+            <if test='createTime != null'>
+                `create_time`=#{createTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test='updateTime != null'>
+                `update_time`=#{updateTime,jdbcType=TIMESTAMP}
+            </if>
+        </set>
+        where `id` = #{id,jdbcType=VARCHAR}
+    </update>
+</mapper>    

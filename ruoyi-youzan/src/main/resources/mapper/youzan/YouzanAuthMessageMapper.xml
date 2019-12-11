@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.YouzanAuthMessageMapper">
+    <resultMap type="YouzanAuthMessage" id="YouzanAuthMessageResult">
+        <id     property="id"      column="id"      />
+        <result property="orderNo"    column="order_no"    />
+        <result property="buyerPhone"     column="buyer_phone"     />
+        <result property="kdtId"     column="kdt_id"     />
+        <result property="shopDisPlayNo" column="shop_display_no" />
+        <result property="appId"     column="app_id"     />
+        <result property="buyerId"     column="buyer_id"     />
+        <result property="type"     column="type"     />
+        <result property="expireTime"    column="expire_time"    />
+        <result property="effectTime"     column="effect_time"     />
+        <result property="remark"    column="remark"    />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+    <sql id="selectYzMessageVo">
+        select `id`, `order_no`, `buyer_phone`, `kdt_id`, `shop_display_no`, `app_id`, `buyer_id`, `type`, `expire_time`, `effect_time`, `remark`, `create_by`, `create_time`, `update_by`, `update_time`
+        from qm_yz_message
+    </sql>
+    
+    <select id="getOne"  parameterType="String" resultMap="YouzanAuthMessageResult">
+        <include refid="selectYzMessageVo"/>
+        where `type` = 'APP_AUTH'
+        <if test='kdtId != null and kdtId != ""'>
+            AND `kdt_id`=#{kdtId,jdbcType=VARCHAR}
+        </if>
+        order by `effect_time` desc limit 1
+    </select>
+    
+    <insert id="insert"  parameterType="YouzanAuthMessage">
+        insert into qm_yz_message(`id`, `order_no`, `buyer_phone`, `kdt_id`, `shop_display_no`, `app_id`, `buyer_id`, `type`, `expire_time`, `effect_time`, 
+                                 `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+        values(#{id,jdbcType=VARCHAR}, #{orderNo,jdbcType=VARCHAR}, #{buyerPhone,jdbcType=VARCHAR}, #{kdtId,jdbcType=VARCHAR}, #{shopDisPlayNo,jdbcType=VARCHAR},
+               #{appId,jdbcType=VARCHAR}, #{buyerId,jdbcType=VARCHAR}, #{type,jdbcType=VARCHAR}, #{expireTime,jdbcType=TIMESTAMP}, #{effectTime,jdbcType=TIMESTAMP},
+               #{createBy,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateBy,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP}, #{remark,jdbcType=VARCHAR})
+    </insert>
+    
+    <update id="update" parameterType="YouzanAuthMessage">
+        update qm_yz_message 
+        <set> 
+            <if test='orderNo != null and orderNo != ""'>
+                `order_no`=#{orderNo,jdbcType=VARCHAR}, 
+            </if>
+            <if test='buyerPhone != null and buyerPhone != ""'>
+                `buyer_phone`=#{buyerPhone,jdbcType=VARCHAR}, 
+            </if>
+            <if test='kdtId != null and kdtId != ""'>
+                `kdt_id`=#{kdtId,jdbcType=VARCHAR}, 
+            </if>
+            <if test='shopDisPlayNo != null and shopDisPlayNo != ""'>
+                `shop_display_no`=#{shopDisPlayNo,jdbcType=VARCHAR}, 
+            </if>
+            <if test='appId != null and appId != ""'>
+                `app_id`=#{appId,jdbcType=VARCHAR}, 
+            </if>
+            <if test='buyerId != null and buyerId != ""'>
+                `buyer_id`=#{buyerId,jdbcType=VARCHAR}, 
+            </if>
+            <if test='type != null and type != ""'>
+                `type`=#{type,jdbcType=VARCHAR}, 
+            </if>
+            <if test='expire_time != null'>
+                `expire_time`=#{expireTime,jdbcType=TIMESTAMP}, 
+            </if>
+            <if test='effect_time != null'>
+                `effect_time`=#{effectTime,jdbcType=TIMESTAMP}, 
+            </if>
+            <if test='remark != null and remark != ""'>
+                `remark`=#{remark,jdbcType=VARCHAR},
+            </if>
+            <if test='createBy != null and createBy != ""'>
+                `create_by`=#{createBy,jdbcType=VARCHAR},
+            </if>
+            <if test='updateBy != null and updateBy != ""'>
+                `update_by`=#{updateBy,jdbcType=VARCHAR},
+            </if>
+            <if test='createTime != null'>
+                `create_time`=#{createTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test='updateTime != null'>
+                `update_time`=#{updateTime,jdbcType=TIMESTAMP}
+            </if>
+        </set>
+        where `id` = #{id,jdbcType=VARCHAR}
+    </update>
+</mapper>    

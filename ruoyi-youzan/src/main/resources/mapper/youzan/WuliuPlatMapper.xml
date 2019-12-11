@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.WuliuPlatMapper">
+    <resultMap type="WuliuPlat" id="WuliuPlatResult">
+        <id     property="id"      column="id"      />
+        <result property="url"    column="url"    />
+        <result property="appKey"    column="app_key"    />
+        <result property="appSecret"     column="app_secret"     />
+        <result property="customsName"     column="customs_name"     />
+        <result property="customsCode"     column="customs_code"     />
+        <result property="bizSiteCode"   column="biz_site_code"   />
+        <result property="bizId"    column="biz_id"    />
+        <result property="bizPwd"    column="biz_pwd"    />
+        <result property="keyName" column="key_name" />
+        <result property="remark"    column="remark"    />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+    
+    <sql id="selectWlPlatVo">
+        select `id`, `url`, `app_key`, `app_secret`, `biz_site_code`, `biz_id`, `biz_pwd`, 
+               `key_name`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`,
+               `customs_name`, `customs_code`
+        from qm_wuliu_plat
+    </sql>
+    
+    <select id="getOne"  parameterType="String" resultMap="WuliuPlatResult">
+        <include refid="selectWlPlatVo"/>
+        where 1 = 1
+        <if test='keyName != null and keyName != ""'>
+            AND `key_name` = #{keyName,jdbcType=VARCHAR}
+        </if>
+        order by `update_time` desc limit 1
+    </select>
+    
+</mapper>    

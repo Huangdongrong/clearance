@@ -1,0 +1,456 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.YouzanOrderMapper">
+    <resultMap type="YouzanOrder" id="YouzanOrderResult">
+        <id     property="id"      column="id"      />
+        <result property="tid"    column="tid"    />
+        <result property="orderNo"     column="order_no"     />
+        <result property="copNo"     column="cop_no"     />
+        <result property="transaction"   column="transaction"   />
+        <result property="seperated" column="seperated"/>
+        <result property="kdtId"    column="kdt_id"    />
+        <result property="amount"    column="amount"    />
+        <result property="status" column="status" />
+        <result property="statusMessage" column="status_message" />
+        <result property="wayBillEnt" column="way_bill_ent" />
+        <result property="wayBillNo" column="way_bill_no" />
+        <result property="body" column="body" typeHandler="com.ruoyi.yz.mybatis.CEB311MessageTypeHandler"/>
+        <result property="alreadySyncPay" column="already_sync_pay"/>
+        <result property="syncPayStatus" column="sync_pay_status" typeHandler="com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler"/>
+        <result property="alreadySyncOrder" column="already_sync_order"/>        
+        <result property="syncOrderStatus" column="sync_order_status" typeHandler="com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler"/>
+        <result property="alreadySyncWuliu" column="already_sync_wuliu"/>        
+        <result property="syncWuliuStatus" column="sync_wuliu_status" typeHandler="com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler"/>
+        <result property="alreadySyncDetails" column="already_sync_details"/>           
+        <result property="syncDetailsStatus" column="sync_details_status" typeHandler="com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler"/>
+        <result property="remark"    column="remark"    />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+    <sql id="selectYzOrderVo">
+        select `id`, `tid`, `order_no`, `cop_no`, `transaction`, `kdt_id`, `amount`, `status`, `body`, `way_bill_ent`, `way_bill_no`,
+        `sync_pay_status`, `sync_order_status`, `sync_wuliu_status`, `sync_details_status`, `status_message`, `seperated`,
+        `already_sync_pay`, `already_sync_order`, `already_sync_wuliu`,`already_sync_details`, `create_by`, `create_time`, 
+        `update_by`, `update_time`, `remark`
+        from qm_yz_order
+    </sql>
+    
+    <select id="pullOrders" resultMap="YouzanOrderResult" parameterType="Date">
+        <include refid="selectYzOrderVo"/>
+        where `status` = 'STATUS_WAITING' OR `status` = 'STATUS_DISCARDED'
+        <if test='lastPulledDate != null'>
+            AND update_time <![CDATA[>=]]> #{lastPulledDate, jdbcType=TIMESTAMP}
+        </if>
+    </select>
+    
+    <select id="getOrdersOfKdts" resultType="Map">
+        select IFNULL(a.`kdt_id`, 'total') as `kdt_id`,
+               sum(IF(a.`status` = 'STATUS_INIT', a.cnt, 0)) as '待申请',
+               sum(IF(a.`status` = 'STATUS_WAITING', a.cnt, 0)) as '已下单',
+               sum(IF(a.`status` = 'STATUS_APPLYING', a.cnt, 0)) as '清关中',
+               sum(IF(a.`status` = 'STATUS_SUCCESS', a.cnt, 0)) as '清关成功',
+               sum(IF(a.`status` = 'STATUS_REJECTED', a.cnt, 0)) as '清关失败',
+               sum(IF(a.`status` = 'STATUS_DISCARDED', a.cnt, 0)) as '订单废弃',
+               sum(IF(a.`status` = 'STATUS_COMPLETED', a.cnt, 0)) as '已完成'
+        from (select `kdt_id`, `status`, count(`id`) as cnt
+        from qm_yz_order
+        where 1=1
+        <if test='startTime != null'>
+            AND `update_time` <![CDATA[>=]]> #{startTime, jdbcType=TIMESTAMP}
+        </if>
+        <if test='status != null and status != "" and status != "-1"'>
+            AND `status` = #{status, jdbcType=VARCHAR}
+        </if>
+        <if test='endTime != null'>
+            AND `update_time` <![CDATA[<]]> #{endTime, jdbcType=TIMESTAMP}
+        </if>
+        <if test='kdtIds != null and kdtIds.size() > 0'>
+            AND `kdt_id` in 
+            <foreach collection="kdtIds" index="index" item="item" open="(" separator="," close=")">
+                #{item}
+            </foreach>
+        </if>
+        group by `kdt_id`, `status`
+        order by `update_time` desc) a 
+        GROUP BY a.`kdt_id` WITH ROLLUP
+    </select>
+    
+    <select id="getInitOrdersOfKdt" resultMap="YouzanOrderResult" parameterType="Map">
+        <include refid="selectYzOrderVo"/>
+        where `status` = 'STATUS_INIT'
+        <if test='kdt.authId != null and kdt.authId != ""'>
+            AND `kdt_id` = #{kdt.authId, jdbcType=VARCHAR}
+        </if>
+        <if test='kdt.startTime != null'>
+            AND `update_time` <![CDATA[>=]]> #{kdt.startTime, jdbcType=TIMESTAMP}
+        </if>
+        <if test='kdt.endTime != null'>
+            AND `update_time` <![CDATA[<]]> #{kdt.endTime, jdbcType=TIMESTAMP}
+        </if>
+    </select>
+    
+    <select id="getReadyApplyingOrdersOfKdt" resultMap="YouzanOrderResult" parameterType="Map">
+        <include refid="selectYzOrderVo"/>
+        where `status` = 'STATUS_APPLYING'
+        <if test='kdt.authId != null and kdt.authId != ""'>
+            AND `kdt_id` = #{kdt.authId, jdbcType=VARCHAR}
+        </if>
+        <if test='kdt.lastExecuteDate != null'>
+            AND `update_time` <![CDATA[>=]]> #{kdt.lastExecuteDate, jdbcType=TIMESTAMP}
+        </if>
+    </select>
+    
+    <select id="getReadyCompleteOrdersOfKdt" resultMap="YouzanOrderResult" parameterType="Map">
+        <include refid="selectYzOrderVo"/>
+        where `status` = 'STATUS_SUCCESS'
+        <if test='params.authId != null and params.authId != ""'>
+            AND `kdt_id` = #{params.authId, jdbcType=VARCHAR}
+        </if>
+        <if test='params.lastCompleteDate!= null'>
+            AND (`update_time` <![CDATA[>=]]> #{params.lastCompleteDate, jdbcType=TIMESTAMP} 
+            AND `update_time` <![CDATA[<]]> NOW())
+        </if>
+    </select>
+    
+    <select id="getReadyClearingDetailsOfKdt" resultMap="YouzanOrderResult" parameterType="Map">
+        <include refid="selectYzOrderVo"/>
+        where `status` = 'STATUS_APPLYING'
+        <if test='params.authId != null and params.authId != ""'>
+            AND `kdt_id` = #{params.authId, jdbcType=VARCHAR}
+        </if>
+        <if test='params.lastCompleteDate!= null'>
+            AND (`update_time` <![CDATA[>=]]> #{params.lastCompleteDate, jdbcType=TIMESTAMP} 
+            AND `update_time` <![CDATA[<]]> DATE_ADD(NOW(), INTERVAL-10 MINUTE))
+        </if>
+        AND `already_sync_order` = 1
+        AND `already_sync_pay` = 1
+        AND `already_sync_wuliu` = 1
+        AND `sync_order_status` -> '$.success' = true
+        AND `sync_pay_status` -> '$.success' = true
+        AND `sync_wuliu_status` -> '$.success' = true
+    </select>
+    
+    <select id="getNeedToQueryPayClearanceOrdersOfKdt" resultMap="YouzanOrderResult" parameterType="Map">
+        <include refid="selectYzOrderVo"/>
+        where `status` = 'STATUS_APPLYING'
+        <if test='kdt.authId != null and kdt.authId != ""'>
+            AND `kdt_id` = #{kdt.authId, jdbcType=VARCHAR}
+        </if>
+        <if test='kdt.lastQueryDate != null'>
+            AND `update_time` <![CDATA[>=]]> #{kdt.lastQueryDate, jdbcType=TIMESTAMP}
+        </if>
+    </select>
+    
+    <select id="getPageList" parameterType="YouzanOrder" resultMap="YouzanOrderResult">
+        <include refid="selectYzOrderVo"/>
+        where 1 = 1
+        <if test='order.searchValue != null and order.searchValue != ""'>
+            AND (`body` -> '$.order.orderHead.buyerName' LIKE CONCAT('%',#{order.searchValue}, '%')
+            OR `body` -> '$.order.orderHead.consignee' LIKE CONCAT('%',#{order.searchValue}, '%')
+            OR `body` -> '$.order.orderHead.consigneeTelephone' LIKE CONCAT('%',#{order.searchValue}, '%')
+            OR `body` -> '$.order.orderHead.consigneeAddress' LIKE CONCAT('%',#{order.searchValue}, '%')
+            OR `body` -> '$.order.orderHead.buyerTelephone' LIKE CONCAT('%',#{order.searchValue}, '%')
+            OR `body` -> '$.order.orderHead.ebpName' LIKE CONCAT('%',#{order.searchValue}, '%')
+            OR `body` -> '$.order.orderHead.ebcName' LIKE CONCAT('%',#{order.searchValue}, '%')
+            OR `body` -> '$.order.orderHead.orderNo' LIKE CONCAT('%',#{order.searchValue}, '%')
+            OR `body` -> '$.order.orderHead.payTransactionId' LIKE CONCAT('%',#{order.searchValue}, '%'))
+        </if>
+        <if test='order.kdtId != null and order.kdtId != ""'>
+            AND `kdt_id` = #{order.kdtId, jdbcType=VARCHAR}
+        </if>
+        <if test='order.status != null and order.status != "" and order.status != "-1"'>
+            AND `status` = #{order.status, jdbcType=VARCHAR}
+        </if>
+        <if test='order.params != null and order.params.size() > 0'>
+            <if test='order.params.beginTime != null'>
+                AND str_to_date(REPLACE(`body` -> '$.order.orderHead.orderTime', '\"', ''),'%Y-%m-%d %H:%i:%s') <![CDATA[>=]]> date_format(#{order.params.beginTime},'%Y-%m-%d %H:%i:%s')
+            </if>
+            <if test='order.params.endTime != null'>
+                AND str_to_date(REPLACE(`body` -> '$.order.orderHead.orderTime', '\"', ''),'%Y-%m-%d %H:%i:%s') <![CDATA[<]]> date_format(#{order.params.endTime},'%Y-%m-%d %H:%i:%s')
+            </if>
+            ${order.params.dataScope}
+        </if>
+        order by `create_time` DESC
+    </select> 
+    
+    <select id="getOne"  parameterType="String" resultMap="YouzanOrderResult">
+        <include refid="selectYzOrderVo"/>
+        where 1 = 1
+        <if test='id != null and id != ""'>
+            AND `id` = #{id}
+        </if>
+        ORDER by `update_time` DESC 
+        LIMIT 1
+    </select>
+    
+    <select id="getOneByOrderNo"  parameterType="String" resultMap="YouzanOrderResult">
+        <include refid="selectYzOrderVo"/>
+        where 1 = 1
+        <if test='orderNo != null and orderNo != ""'>
+            AND (`tid` = #{orderNo, jdbcType=VARCHAR} 
+                 OR `order_no` = #{orderNo, jdbcType=VARCHAR})
+        </if>
+        ORDER by `update_time` DESC LIMIT 1
+    </select>
+    
+    <select id="getOneByCopNo"  parameterType="String" resultMap="YouzanOrderResult">
+        <include refid="selectYzOrderVo"/>
+        where 1 = 1
+        <if test='copNo != null and copNo != ""'>
+            AND `cop_no` = #{copNo, jdbcType=VARCHAR}
+        </if>
+        ORDER by `update_time` DESC LIMIT 1
+    </select>
+    
+    <select id="getByIds" resultMap="YouzanOrderResult">
+        <include refid="selectYzOrderVo"/>
+        WHERE 1 = 1
+        <if test='authId != null and authId != ""'>
+            AND `kdt_id` = #{authId,jdbcType=VARCHAR}
+        </if>
+        <if test='ids != null and ids.length > 0'>
+            AND `id` in 
+            <foreach collection="ids" item="id" open="(" separator="," close=")">
+                #{id, jdbcType=VARCHAR}
+            </foreach> 
+        </if>
+    </select>
+    
+    <select id="existed" resultMap="YouzanOrderResult">
+        <include refid="selectYzOrderVo"/>
+        where 1 = 1 
+        <if test="trans != null and trans.size > 0">
+            AND transaction in 
+            <foreach item="tran" index="index" collection="trans" open="(" separator="," close=")">  
+                #{tran}  
+            </foreach>  
+        </if>
+        <if test="startTime != null">
+            AND update_time <![CDATA[>=]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND update_time <![CDATA[<]]> #{endTime}
+        </if>
+        ORDER by `update_time` ASC LIMIT 1
+    </select>
+    
+    <insert id="insert" parameterType="YouzanOrder" >
+        insert into qm_yz_order(`id`, `tid`, `order_no`, `cop_no`, `transaction`, `kdt_id`, `amount`, `status`, `seperated`,
+        `body`, `way_bill_ent`, `way_bill_no`, `already_sync_pay`, `already_sync_order`, `already_sync_wuliu`,`already_sync_details`,
+        `sync_pay_status`, `sync_order_status`, `sync_wuliu_status`, `sync_details_status`, 
+        `status_message`, `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+        values(#{id,jdbcType=VARCHAR}, #{tid,jdbcType=VARCHAR}, #{orderNo,jdbcType=VARCHAR}, #{copNo,jdbcType=VARCHAR}, #{transaction,jdbcType=VARCHAR}, #{kdtId,jdbcType=VARCHAR},
+        #{amount,jdbcType=VARCHAR}, #{status,jdbcType=VARCHAR}, #{seperated, jdbcType=BIT}, #{body,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.CEB311MessageTypeHandler}, 
+        #{wayBillEnt,jdbcType=VARCHAR}, #{wayBillNo,jdbcType=VARCHAR},
+        #{alreadySyncPay,jdbcType=BIT}, #{alreadySyncOrder,jdbcType=BIT},
+        #{alreadySyncWuliu,jdbcType=BIT}, #{alreadySyncDetails,jdbcType=BIT},
+        #{syncPayStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},
+        #{syncOrderStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},
+        #{syncWuliuStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},
+        #{syncDetailsStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},
+        #{statusMessage,jdbcType=VARCHAR}, #{createBy,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateBy,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP}, #{remark,jdbcType=VARCHAR})
+    </insert>
+    
+    
+    <insert id="batchInsert" parameterType="List">
+        insert into qm_yz_order(`id`, `tid`, `order_no`, `cop_no`, `transaction`, `kdt_id`, `amount`, `status`, `way_bill_ent`, `way_bill_no`,
+        `already_sync_pay`, `already_sync_order`, `already_sync_wuliu`,`already_sync_details`,
+        `sync_pay_status`, `sync_order_status`, `sync_wuliu_status`, `sync_details_status`, `body`, `status_message`, `seperated`,
+        `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+        values
+        <foreach collection="orders" item="order" separator=",">
+            (
+            #{order.id,jdbcType=VARCHAR}, #{order.tid,jdbcType=VARCHAR}, #{order.orderNo,jdbcType=VARCHAR}, #{order.copNo,jdbcType=VARCHAR}, #{order.transaction,jdbcType=VARCHAR}, #{order.kdtId,jdbcType=VARCHAR},
+            #{order.amount,jdbcType=VARCHAR}, #{order.status,jdbcType=VARCHAR},
+            #{order.wayBillEnt, jdbcType=VARCHAR}, #{order.wayBillNo, jdbcType=VARCHAR}, 
+            #{order.alreadySyncPay,jdbcType=BIT}, #{order.alreadySyncOrder,jdbcType=BIT},
+            #{order.alreadySyncWuliu,jdbcType=BIT}, #{order.alreadySyncDetails,jdbcType=BIT},
+            #{order.syncPayStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},
+            #{order.syncOrderStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},
+            #{order.syncWuliuStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},    
+            #{order.syncDetailsStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler},             
+            #{order.body,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.CEB311MessageTypeHandler},
+            #{order.statusMessage, jdbcType=VARCHAR}, #{order.seperated, jdbcType=BIT},
+            #{order.createBy,jdbcType=VARCHAR}, #{order.createTime,jdbcType=TIMESTAMP}, #{order.updateBy,jdbcType=VARCHAR}, #{order.updateTime,jdbcType=TIMESTAMP}, #{order.remark,jdbcType=VARCHAR}
+            )
+        </foreach>
+    </insert>
+    
+    <delete id="batchDelete" parameterType="java.util.List">
+        DELETE FROM qm_yz_order WHERE id IN
+        <foreach collection="ids" index="index" item="id" open="(" separator="," close=")"> 
+            #{id} 
+        </foreach>
+    </delete>
+    
+    <update id="batchUpdate" parameterType="List">
+        <if test="orders != null and orders.size > 0">
+            <foreach collection="orders" separator=";" item="order">
+                update qm_yz_order
+                <set> 
+                    <if test='order.tid != null and order.tid != ""'>
+                        `tid`=#{order.tid,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.orderNo != null and order.orderNo != ""'>
+                        `order_no`=#{order.orderNo,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.copNo != null and order.copNo != ""'>
+                        `cop_no`=#{order.copNo,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.transaction != null and order.transaction != ""'>
+                        `transaction`=#{order.transaction,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.seperated != null'>
+                        `seperated`=#{order.seperated,jdbcType=BIT}, 
+                    </if>
+                    <if test='order.kdtId != null and order.kdtId != ""'>
+                        `kdt_id`=#{order.kdtId,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.amount != null and order.amount != ""'>
+                        `amount`=#{order.amount,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.status != null and order.status != ""'>
+                        `status`=#{order.status,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.statusMessage != null and order.statusMessage != ""'>
+                        `status_message`=#{order.statusMessage,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.wayBillEnt != null and order.wayBillEnt != ""'>
+                        `way_bill_ent`=#{order.wayBillEnt, jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.wayBillNo != null and order.wayBillNo != ""'>
+                        `way_bill_no`=#{order.wayBillNo,jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='order.alreadySyncPay != null'>
+                        `already_sync_pay`=#{order.alreadySyncPay,jdbcType=BIT}, 
+                    </if>
+                    <if test='order.alreadySyncOrder != null'>
+                        `already_sync_order`=#{order.alreadySyncOrder,jdbcType=BIT}, 
+                    </if>
+                    <if test='order.alreadySyncWuliu != null'>
+                        `already_sync_wuliu`=#{order.alreadySyncWuliu,jdbcType=BIT}, 
+                    </if>
+                    <if test='order.alreadySyncDetails != null'>
+                        `already_sync_details`=#{order.alreadySyncDetails,jdbcType=BIT}, 
+                    </if>
+                    <if test="order.syncPayStatus != null">
+                        `sync_pay_status`=#{order.syncPayStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler}, 
+                    </if>
+                    <if test="order.syncOrderStatus != null">
+                        `sync_order_status`=#{order.syncOrderStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler}, 
+                    </if>
+                    <if test="order.syncWuliuStatus != null">
+                        `sync_wuliu_status`=#{order.syncWuliuStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler}, 
+                    </if>
+                    <if test="order.syncDetailsStatus != null">
+                        `sync_details_status`=#{order.syncDetailsStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler}, 
+                    </if>
+                    <if test="order.body != null">
+                        `body`=#{order.body, jdbcType=OTHER, typeHandler=com.ruoyi.yz.mybatis.CEB311MessageTypeHandler}, 
+                    </if>
+                    <if test='order.remark != null and order.remark != ""'>
+                        `remark`=#{order.remark,jdbcType=VARCHAR},
+                    </if>
+                    <if test='order.createBy != null and order.createBy != ""'>
+                        `create_by`=#{order.createBy,jdbcType=VARCHAR},
+                    </if>
+                    <if test='order.updateBy != null and order.updateBy != ""'>
+                        `update_by`=#{order.updateBy,jdbcType=VARCHAR},
+                    </if>
+                    <if test='order.createTime != null'>
+                        `create_time`=#{order.createTime,jdbcType=TIMESTAMP},
+                    </if>
+                    <if test='order.updateTime != null'>
+                        `update_time`=#{order.updateTime,jdbcType=TIMESTAMP}
+                    </if>
+                </set>
+                where `id` = #{order.id,jdbcType=VARCHAR}
+            </foreach>
+        </if>
+    </update>
+    
+    <update id="update" parameterType="YouzanOrder">
+        update qm_yz_order
+        set 
+        <if test='tid != null and tid != ""'>
+            `tid`=#{tid, jdbcType=VARCHAR}, 
+        </if>
+        <if test='orderNo != null and orderNo != ""'>
+            `order_no`=#{orderNo,jdbcType=VARCHAR}, 
+        </if>
+        <if test='copNo != null and copNo != ""'>
+            `cop_no`=#{copNo,jdbcType=VARCHAR}, 
+        </if>
+        <if test='transaction != null and transaction != ""'>
+            `transaction`=#{transaction,jdbcType=VARCHAR}, 
+        </if>
+        <if test='seperated != null'>
+            `seperated`=#{seperated,jdbcType=BIT}, 
+        </if>
+        <if test='kdtId != null and kdtId != ""'>
+            `kdt_id`=#{kdtId, jdbcType=VARCHAR}, 
+        </if>
+        <if test='amount != null and amount != ""'>
+            `amount`=#{amount, jdbcType=VARCHAR}, 
+        </if>
+        <if test='status != null and status != ""'>
+            `status`=#{status, jdbcType=VARCHAR}, 
+        </if>
+        <if test='statusMessage != null and statusMessage != ""'>
+            `status_message`=#{statusMessage, jdbcType=VARCHAR}, 
+        </if>
+        <if test='wayBillEnt != null and wayBillEnt != ""'>
+            `way_bill_ent`=#{wayBillEnt, jdbcType=VARCHAR}, 
+        </if>
+        <if test='wayBillNo != null and wayBillNo != ""'>
+            `way_bill_no`=#{wayBillNo, jdbcType=VARCHAR}, 
+        </if>
+        <if test='alreadySyncPay != null'>
+            `already_sync_pay`=#{alreadySyncPay,jdbcType=BIT}, 
+        </if>
+        <if test='alreadySyncOrder != null'>
+            `already_sync_order`=#{alreadySyncOrder,jdbcType=BIT}, 
+        </if>
+        <if test='alreadySyncWuliu != null'>
+            `already_sync_wuliu`=#{alreadySyncWuliu,jdbcType=BIT}, 
+        </if>
+        <if test='alreadySyncDetails != null'>
+            `already_sync_details`=#{alreadySyncDetails,jdbcType=BIT}, 
+        </if>
+        <if test='syncPayStatus != null'>
+            `sync_pay_status`=#{syncPayStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler}, 
+        </if>
+        <if test='syncOrderStatus != null'>
+            `sync_order_status`=#{syncOrderStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler}, 
+        </if>
+        <if test='syncWuliuStatus != null'>
+            `sync_wuliu_status`=#{syncWuliuStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler}, 
+        </if>
+        <if test='syncDetailsStatus != null'>
+            `sync_details_status`=#{syncDetailsStatus,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.ClearanceStatusTypeHandler}, 
+        </if>
+        <if test='body != null'>
+            `body`=#{body,jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.CEB311MessageTypeHandler}, 
+        </if>
+        <if test='remark != null and remark != ""'>
+            `remark`=#{remark,jdbcType=VARCHAR},
+        </if>
+        <if test='createBy != null and createBy != ""'>
+            `create_by`=#{createBy,jdbcType=VARCHAR},
+        </if>
+        <if test='updateBy != null and updateBy != ""'>
+            `update_by`=#{updateBy,jdbcType=VARCHAR},
+        </if>
+        <if test='createTime != null'>
+            `create_time`=#{createTime,jdbcType=TIMESTAMP},
+        </if>
+        <if test='updateTime != null'>
+            `update_time`=#{updateTime,jdbcType=TIMESTAMP}
+        </if>
+        where `id` = #{id, jdbcType=VARCHAR}
+    </update>
+</mapper>    

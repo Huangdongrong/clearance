@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('有赞平台商铺订单列表')" />
+    <link th:href="@{/css/order.css}" rel="stylesheet"/>
+    <link th:href="@{/css/bootstrap-select.min.css}" rel="stylesheet"/>
+</head>
+<body class="gray-bg">
+    <div class="container-div">
+        <div class="row">
+            <div class="col-sm-12 search-collapse">
+                <form id="order-form"  class="form-horizontal" th:object="${order}">
+                    <div class="select-list">
+                        <ul>
+                            <li><select id="kdtId" name="kdtId" class="selectpicker show-tick form-control" data-live-search="true" data-size="5" required>
+                                        <option th:each="a:${kdtList}" th:field="*{kdtId}" th:value="${a.authorityId}" th:id="${a.authorityId}" th:text="${a.authorityName}"></option>
+                                    </select>
+                            </li>
+                            <li>
+                                状态：<select name="status">
+                                        <option value="-1">所有</option>
+                                        <option th:each="enum:${T(com.ruoyi.yz.enums.OrderStatus).values()}" th:value="${enum.name()}" th:text="${enum.getValue()}">
+                                        </option>
+                                    </select>
+                            </li>
+                            <li class="select-time">
+                                <label>更新时间： </label>
+                                <input type="text" class="time-input" id="startTime" placeholder="开始时间" name="params[beginTime]" th:value="${#dates.format(order.createTime, 'yyyy-MM-dd')}"/>
+                                <span>-</span>
+                                <input type="text" class="time-input" id="endTime" placeholder="结束时间" name="params[endTime]" th:value="${#dates.format(order.updateTime, 'yyyy-MM-dd')}"/>
+                            </li>
+                            <li>
+                                关键字:<input type="text" name="searchValue" id="searchValue"/>
+                            </li>
+                            <li>
+                                <a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                                <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                            </li>
+                        </ul>
+                    </div>
+                </form>
+            </div>
+            <div class="btn-group-sm" id="toolbar" role="group">
+                <a id="kdtId" href="javascript:void(0)" class="btn btn-secondary disabled"></a>
+            </div>
+            <div class="col-sm-12 select-table table-striped">
+                <table id="bootstrap-table" data-mobile-responsive="true"></table>
+            </div>
+        </div>
+    </div>
+    <th:block th:include="include :: footer" />
+    <script th:src="@{/js/bootstrap-select.min.js}" type="text/javascript"></script>
+    <script th:inline="javascript">
+        var adminFlag = [[${@permission.hasPermi('customs:youzan:admin')}]];
+        var prefix = ctx + "customs/youzan";
+        $(function () {
+            var cntyKeys = [[${T(com.ruoyi.yz.enums.Currency).keys()}]];
+            var cntyCnNames = [[${T(com.ruoyi.yz.enums.Currency).cnNames()}]];
+            var options = {
+                url: prefix + "/kdt/orders/query",
+                pagination: true,
+                sortName: "updateTime",
+                sortOrder: 'desc',
+                modalName: "店铺订单",
+                columns: [{
+                        checkbox: true
+                    },
+                    {
+                        field: 'tid',
+                        title: '订单号'
+                    },
+                    {
+                        field: 'orderNo',
+                        title: '子订单号',
+                        sortable: true
+                    },
+                    {
+                        field: 'transaction',
+                        title: '支付流水号',
+                        sortable: true
+                    },
+                    {
+                        field: 'amount',
+                        title: '订单总额(含税)',
+                        sortable: true
+                    },
+                    {
+                        field: 'searchValue',
+                        title: '订单状态'
+                    },
+                    {
+                        title: '买家',
+                        formatter: function (value, row, index) {
+                            var buyer = "";
+                            if(row && row.body && row.body.order && row.body.order.orderHead){
+                                if(row.body.order.orderHead.buyerName){
+                                    buyer += (row.body.order.orderHead.buyerName + "[" + row.body.order.orderHead.buyerIdNumber + "]");
+                                }else if(row.body.order.orderHead.receiver && row.body.order.orderHead.receiver.name){
+                                    buyer += row.body.order.orderHead.receiver.name;
+                                }
+                            }
+                            return buyer;
+                        }
+                    },
+                    {
+                        field: 'body.order.orderHead.qty',
+                        title: '货品总数量'
+                    },
+                    {
+                        field: 'wayBillNo',
+                        title: '物流单号',
+                        sortable: true
+                    },
+                    {
+                        field: 'body.order.orderHead.orderTime',
+                        title: '下单时间',
+                        sortable: true
+                    },
+                    {
+                        field: 'updateTime',
+                        title: '更新时间',
+                        sortable: true
+                    },
+                    {
+                        field: 'status',
+                        title: '操作',
+                        align: 'center',
+                        formatter: function (value, row, index) {
+                            if (row && index == 0) {
+                                $.operate.asynPost(prefix +"/queryKdt/" + row.kdtId, null, function(data){
+                                    if(data && data.data){
+                                        $('#kdtId').text("店铺:" + data.data);
+                                    }
+                                });
+                            }
+                            var actions = [];
+                            if(value && value != 'STATUS_COMPLETED'){
+                                actions.push('<a class="btn btn-success btn-xs ' + adminFlag + '" href="javascript:void(0)" onclick="javascript:clearance(\'' + row.orderNo + '\')"><i class="fa fa-paper-plane-o"></i>手工清关</a> ');
+                            }
+                            return actions.join('');
+                        }
+                    }],
+                detailView: true
+            };
+
+            $.table.init(options);
+
+            $('table').on('expand-row.bs.table', function (e, index, row, $detail) {
+                var html = '';
+                if(row && row.body && row.body.order && row.body.order.orderList){
+                    var orders = row.body.order.orderList;
+                    for(var idx = 0; idx<orders.length; idx ++){
+                        var order = orders[idx];
+                        html += '<div class="table-detail">';
+                        html += '  <div class="row">';
+                        html += '    <div class="col-xs-12 col-sm-12">';
+                        html += '      <div class="space visible-xs"></div>';
+                        html += '      <div class="profile-user-info profile-user-info-striped">';
+                        html += '        <div class="profile-info-row">';
+                        html += '          <div class="profile-info-name">商品信息</div>';
+                        var item = "名称:" + order.itemName;
+                        if(order.itemNo){
+                            item += (";&nbsp;&nbsp;" + "货号:" + order.itemNo);
+                        }
+                        if(order.itemDescribe){
+                            item += (";&nbsp;&nbsp;" + "描述:" + order.itemDescribe);
+                        }
+                        if(order.country){
+                            var ctryCnName = '';
+                            if(cntyKeys && cntyCnNames){
+                               for(var idx=0; idx<cntyKeys.length; idx ++){
+                                   if(cntyKeys[idx] === order.country){
+                                        ctryCnName = cntyCnNames[idx];
+                                        break;
+                                   }
+                               }  
+                            }
+                            item += (";&nbsp;&nbsp;" + "原产国:" + ctryCnName);
+                        }
+                        html += '          <div class="profile-info-value"><span>' + item + '</span></div>';
+                        html += '        </div>';
+                        html += '        <div class="profile-info-row">';
+                        html += '          <div class="profile-info-name">订单信息</div>';
+
+                        var odStr = "";
+                        if(row.tid){
+                            odStr += ("订单号" + row.tid);
+                        }
+                        if(row.orderNo){
+                            odStr += (";&nbsp;&nbsp;" + "子订单号:" + row.orderNo);
+                        }
+                        if(row.transaction){
+                            odStr += (";&nbsp;&nbsp;" + "支付流水号:" + row.transaction);
+                        }
+                        html += '          <div class="profile-info-value"><span>' + odStr + '</span></div>';
+                        html += '        </div>';
+                        html += '        <div class="profile-info-row">';
+                        html += '          <div class="profile-info-name">个数</div>';
+                        html += '          <div class="profile-info-value"><span>' + order.qty + '</span></div>';
+                        html += '        </div>';
+                        html += '        <div class="profile-info-row">';
+                        html += '          <div class="profile-info-name">总价(不含税)</div>';
+                        html += '          <div class="profile-info-value"><span>' + order.totalPrice + '元</span></div>';
+                        html += '        </div>';
+                        html += '      </div>';
+                        html += '    </div>';
+                        html += '  </div>';
+                        html += '</div>';
+                    }
+                }
+                $detail.html(html);
+            });
+        });
+        
+        function clearance(orderNo){
+            if(orderNo){
+                $.modal.openTab("人工推单", prefix + "/manual?orderNo=" + orderNo);
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.MvGoodsMapper">
+    <resultMap type="MdGoodsEntity" id="MdGoodsEntityResult">
+        <id     property="id"      column="id"      />
+        <result property="cusCode"    column="cus_code"    />
+        <result property="goodsCode"    column="goods_code"    />
+        <result property="goodsId"     column="goods_id"     />
+        <result property="goodsName"     column="goods_name"     />
+        <result property="shlDanWei"     column="shl_dan_wei"     />
+        <result property="cfWenCeng"   column="cf_wen_ceng"   />
+        <result property="mpDanCeng"    column="mp_dan_ceng"    />
+        <result property="mpCengGao"    column="mp_ceng_gao"    />
+        <result property="shpTiaoMa" column="shp_tiao_ma" />
+        <result property="bzhiQi"    column="bzhi_qi"    />
+        <result property="chlShl"      column="chl_shl"      />
+        <result property="tiJiCm"    column="ti_ji_cm"    />
+        <result property="zhlKg"      column="zhl_kg"      />
+        <result property="baseunit"    column="baseunit"    />
+        <result property="shpMingCheng"    column="shp_ming_cheng"    />
+        <result property="shpGuiGe"    column="shp_gui_ge"    />
+        <result property="shpPinPai"    column="shp_pin_pai"    />
+        <result property="chZhXiang"    column="ch_zh_xiang"    />
+        <result property="kuZhXiang"    column="ku_zh_xiang"    />
+        <result property="gaoZhXiang"    column="gao_zh_xiang"    />
+        <result property="shpCustomsBianMa"    column="shp_customs_bian_ma"    />
+        <result property="shpCustomsUnit"    column="shp_customs_unit"    />
+        <result property="shpCustomsOriginCountry"    column="shp_customs_origin_country"    />
+        <result property="shpCustomsTaxRate"    column="shp_customs_tax_rate"    />
+        <result property="shpCustomsConsumeTaxRate"    column="shp_customs_consume_tax_rate"    />
+        <result property="shpCustomsValueAddedTaxRate"    column="shp_customs_value_added_tax_rate"    />
+        <result property="shpCustomsOrderNo"    column="shp_customs_order_no"    />
+        <result property="shpCustomsOfficialDanWei"    column="shp_customs_official_dan_wei"    />
+        <result property="shpCustomsOfficialQty"    column="shp_customs_official_qty"    />
+    </resultMap>
+    
+    <sql id="selectMvGoodsVo">
+        select `id`, `cus_code`, `goods_code`, `goods_id`, `goods_name`, `shl_dan_wei`, `cf_wen_ceng`, 
+               `mp_dan_ceng`, `mp_ceng_gao`, `shp_tiao_ma`, `bzhi_qi`, `chl_shl`, `ti_ji_cm`, `zhl_kg`,
+               `baseunit`, `shp_ming_cheng`, `shp_gui_ge`, `shp_pin_pai`, `ch_zh_xiang`, `ku_zh_xiang`,
+               `gao_zh_xiang`, `shp_customs_bian_ma`, `shp_customs_unit`, `shp_customs_origin_country`, 
+               `shp_customs_tax_rate`, `shp_customs_consume_tax_rate`, `shp_customs_value_added_tax_rate`,
+               `shp_customs_order_no`, `shp_customs_official_dan_wei`, `shp_customs_official_qty`
+        from mv_goods
+    </sql>
+    
+    <select id="getOneByShpBianMa"  parameterType="String" resultMap="MdGoodsEntityResult">
+        <include refid="selectMvGoodsVo"/>
+        where 1 = 1
+        <if test='shpBianMa != null and shpBianMa != ""'>
+            AND `goods_code` = #{shpBianMa,jdbcType=VARCHAR}
+        </if>
+        limit 1
+    </select>
+    
+    <select id="howManyGoods" resultType="Integer">
+        select count(`id`) from mv_goods;
+    </select>
+    
+    <select id="allShpBianMa" resultType="String" parameterType="String">
+        select c.`goods_code` from mv_goods c
+        where 1 = 1
+        <if test='cusCode != null and cusCode != ""'>
+            AND c.`cus_code` = #{cusCode,jdbcType=VARCHAR}
+        </if>
+        group by c.`goods_code`;
+    </select>
+    
+    <select id="getPageList" parameterType="MdGoodsEntity"  resultMap="MdGoodsEntityResult">
+        <include refid="selectMvGoodsVo"/>
+        where 1 = 1
+        <if test='good.cusCode != null and good.cusCode != ""'>
+            AND `cus_code` = #{good.cusCode,jdbcType=VARCHAR}
+        </if>
+        <!-- 数据范围过滤 -->
+        ${good.params.dataScope}
+        order by `create_time` DESC
+    </select>
+    
+</mapper>    

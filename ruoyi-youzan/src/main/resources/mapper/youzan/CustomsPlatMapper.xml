@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.CustomsPlatMapper">
+    <resultMap type="CustomsPlat" id="CustomsPlatResult">
+        <id     property="id"      column="id"      />
+        <result property="url"    column="url"    />
+        <result property="copCode"    column="cop_code"    />
+        <result property="copName"     column="cop_name"     />
+        <result property="emsNo"     column="ems_no"     />
+        <result property="dxpMode"   column="dxp_mode"   />
+        <result property="dxpId"    column="dxp_id"    />
+        <result property="version"    column="version"    />
+        <result property="district" column="district" />
+        <result property="sender" column="sender" typeHandler="com.ruoyi.yz.mybatis.SenderTypeHandler"/>
+        <result property="remark"    column="remark"    />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+    
+    <sql id="selectPlatVo">
+        select `id`, `url`, `cop_code`, `cop_name`, `dxp_mode`, `dxp_id`, `version`, `district`, 
+        `create_by`, `create_time`, `update_by`, `update_time`, `sender`, `remark`, `ems_no`
+        from qm_customs_plat
+    </sql>
+    
+    <select id="getOneByDistrict"  parameterType="String" resultMap="CustomsPlatResult">
+        <include refid="selectPlatVo"/>
+        where 1 = 1
+        <if test='district != null and district != ""'>
+            AND `district` = #{district,jdbcType=VARCHAR}
+        </if>
+        order by `update_time` desc limit 1
+    </select>
+    
+    <select id="getOne"  parameterType="String" resultMap="CustomsPlatResult">
+        <include refid="selectPlatVo"/>
+        where 1 = 1
+        <if test='id != null and id != ""'>
+            AND `id` = #{id, jdbcType=VARCHAR}
+        </if>
+        order by `update_time` desc limit 1
+    </select>
+</mapper>    

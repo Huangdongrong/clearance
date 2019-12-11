@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.YouzanKdtMapper">
+    <resultMap type="YouzanKdt" id="YouzanKdtResult">
+        <id     property="id"      column="id"      />
+        <result property="name"    column="name"    />
+        <result property="regCode"     column="reg_code"     />
+        <result property="code"     column="code"     />
+        <result property="accessToken"     column="access_token"     />
+        <result property="expires"     column="expires"     />
+        <result property="scope"     column="scope"     />
+        <result property="refreshToken"     column="refresh_token"     />
+        <result property="authorityId"     column="authority_id"     />
+        <result property="authorityName"     column="authority_name"     />
+        <result property="authorityDisplayNo"     column="authority_display_no"     />
+        <result property="sender" column="sender" typeHandler="com.ruoyi.yz.mybatis.SenderTypeHandler"/>
+        <result property="status"     column="status"     />
+        <result property="autoPulling"     column="auto_pulling"     />
+        <result property="autoClearing"     column="auto_clearing"     />
+        <result property="lastPulledDate"     column="last_pulled_date"     />
+        <result property="remark"    column="remark"    />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+    <sql id="selectYzKdtVo">
+        select `id`, `name`, `reg_code`, `code`, `access_token`, `expires`, `scope`,
+               `refresh_token`, `authority_id`, `authority_name`, `authority_display_no`, `sender`, 
+               `status`, `last_pulled_date`, `create_by`, `create_time`, `update_by`, 
+               `update_time`, `remark`, `auto_pulling`, `auto_clearing`
+        from qm_yz_kdt
+    </sql>
+    
+    <select id="getOneByAuthId"  resultMap="YouzanKdtResult" parameterType="String">
+        <include refid="selectYzKdtVo"/>
+        where `status` != 'STATUS_DELETED' 
+        <if test='kdtId != null and kdtId != ""'>
+              AND `authority_id` = #{kdtId,jdbcType=VARCHAR}
+        </if>
+        order by `update_time` DESC 
+        LIMIT 1
+    </select>
+    
+    <select id="getPageList"  resultMap="YouzanKdtResult" parameterType="YouzanKdt" >
+        <include refid="selectYzKdtVo"/>
+        WHERE 1=1
+        <if test="kdt != null">
+            <if test='kdt.searchValue != null and kdt.searchValue != ""'>
+                AND (`name` LIKE CONCAT('%',#{kdt.searchValue}, '%')
+                OR `reg_code` LIKE CONCAT('%',#{order.searchValue}, '%')
+                OR `code` LIKE CONCAT('%',#{order.searchValue}, '%')
+                OR `access_token` LIKE CONCAT('%',#{order.searchValue}, '%')
+                OR `authority_name` LIKE CONCAT('%',#{order.searchValue}, '%'))
+            </if>
+            <if test='kdt.status != null and kdt.status != "" and kdt.status != "-1"'>
+                AND `status` = #{kdt.status, jdbcType=VARCHAR}
+            </if>
+            <if test='kdt.createTime != null and kdt.createTime != ""'><!-- 开始时间检索 -->
+                AND `update_time <![CDATA[>=]]> #{kdt.createTime,jdbcType=TIMESTAMP}
+            </if>
+            <if test='kdt.updateTime != null and kdt.updateTime != ""'><!-- 结束时间检索 -->
+                AND `update_time <![CDATA[<]]> #{kdt.updateTime,jdbcType=TIMESTAMP}
+            </if>
+        </if>
+        order by `update_time` asc
+    </select>
+    
+    <select id="getOne"  resultMap="YouzanKdtResult" parameterType="String">
+        <include refid="selectYzKdtVo"/>
+        where `status` != 'STATUS_DELETED'
+        <if test='id != null and id != ""'>
+              AND `id` = #{id,jdbcType=VARCHAR}
+        </if>
+        ORDER BY `update_time` DESC
+    </select>
+    
+    <select id="getAvailKdts"  resultMap="YouzanKdtResult">
+        <include refid="selectYzKdtVo"/>
+        where `status` != 'STATUS_DELETED'
+        order by `update_time` asc
+    </select> 
+    
+    <insert id="insert" parameterType="YouzanKdt">
+        insert into qm_yz_kdt(`id`, `name`, `reg_code`, `code`, `access_token`, `expires`, `scope`, 
+                              `refresh_token`, `authority_id`, `authority_display_no`, `sender`, `status`, `last_pulled_date`, 
+                              `create_by`, `create_time`, `update_by`, `update_time`, `remark`, `auto_pulling`, `auto_clearing`)
+        values(#{id,jdbcType=VARCHAR}, #{name,jdbcType=VARCHAR}, #{regCode,jdbcType=VARCHAR}, #{code,jdbcType=VARCHAR}, #{accessToken,jdbcType=VARCHAR},
+               #{expires,jdbcType=TIMESTAMP}, #{scope,jdbcType=VARCHAR}, #{refreshToken,jdbcType=VARCHAR}, #{authorityId,jdbcType=VARCHAR}, 
+               #{authorityDisplayNo,jdbcType=VARCHAR}, #{sender, jdbcType=VARCHAR,typeHandler=com.ruoyi.yz.mybatis.SenderTypeHandler}, #{status,jdbcType=VARCHAR},
+               #{lastPulledDate,jdbcType=TIMESTAMP}, #{createBy,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateBy,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP}, 
+               #{remark,jdbcType=VARCHAR}, #{autoPulling,jdbcType=BIT}, #{autoClearing,jdbcType=BIT})
+    </insert>
+    
+    <update id="delete" parameterType="String">
+        update qm_yz_kdt
+        set `status` = 'STATUS_DELETED'
+        where `authority_id` = #{authId,jdbcType=VARCHAR}
+    </update>
+    
+    <update id="update" parameterType="YouzanKdt">
+        update qm_yz_kdt 
+        <set>
+            <if test='name != null and name != ""'>
+                `name`=#{name,jdbcType=VARCHAR}, 
+            </if>
+            <if test='regCode != null and regCode != ""'>
+                `reg_code`=#{regCode,jdbcType=VARCHAR},
+            </if>
+            <if test='code != null and code != ""'>
+                `code`=#{code,jdbcType=VARCHAR},
+            </if>
+            <if test='accessToken != null and accessToken != ""'>
+                `access_token`=#{accessToken,jdbcType=VARCHAR},
+            </if>
+            <if test='expires != null'>
+                `expires`=#{expires,jdbcType=TIMESTAMP},
+            </if>
+            <if test='scope != null and scope != ""'>
+                `scope`=#{scope,jdbcType=VARCHAR},
+            </if>
+            <if test='refreshToken != null and refreshToken != ""'>
+                `refresh_token`=#{refreshToken,jdbcType=VARCHAR},
+            </if>
+            <if test='authorityId != null and authorityId != ""'>
+                `authority_id`=#{authorityId,jdbcType=VARCHAR},
+            </if>
+            <if test='authorityName != null and authorityName != ""'>
+                `authority_name`=#{authorityName,jdbcType=VARCHAR},
+            </if>
+            <if test='authorityDisplayNo != null and authorityDisplayNo != ""'>
+                `authority_display_no`=#{authorityDisplayNo,jdbcType=VARCHAR},
+            </if>
+            <if test='sender != null'>
+                `sender`=#{sender, jdbcType=VARCHAR, typeHandler=com.ruoyi.yz.mybatis.SenderTypeHandler},
+            </if>
+            <if test='status != null and status != ""'>
+                `status`=#{status,jdbcType=VARCHAR},
+            </if>
+            <if test='lastPulledDate != null'>
+                `last_pulled_date`=#{lastPulledDate, jdbcType=TIMESTAMP},
+            </if>
+            <if test='remark != null and remark != ""'>
+                `remark`=#{remark,jdbcType=VARCHAR},
+            </if>
+            <if test='autoPulling != null'>
+                `auto_pulling`=#{autoPulling,jdbcType=BIT},
+            </if>
+            <if test='autoClearing != null'>
+                `auto_clearing`=#{autoClearing,jdbcType=BIT},
+            </if>
+            <if test='createBy != null and createBy != ""'>
+                `create_by`=#{createBy,jdbcType=VARCHAR},
+            </if>
+            <if test='updateBy != null and updateBy != ""'>
+                `update_by`=#{updateBy,jdbcType=VARCHAR},
+            </if>
+            <if test='createTime != null'>
+                `create_time`=#{createTime,jdbcType=TIMESTAMP},
+            </if>
+            <if test='updateTime != null'>
+                `update_time`=#{updateTime,jdbcType=TIMESTAMP}
+            </if>
+        </set>
+        where `id`= #{id,jdbcType=VARCHAR}
+    </update>
+    
+    <update id="batchDelete" parameterType="List">
+        UPDATE qm_yz_kdt
+        set `status` = 'STATUS_DELETED'
+        WHERE `id` IN
+        <foreach collection="ids" index="index" item="item" open="(" separator="," close=")"> 
+            #{item} 
+        </foreach>
+    </update>
+    
+    <update id="batchRecovery" parameterType="List">
+        UPDATE qm_yz_kdt
+        set `status` = 'STATUS_VALID'
+        WHERE `id` IN
+        <foreach collection="ids" index="index" item="item" open="(" separator="," close=")"> 
+            #{item} 
+        </foreach>
+    </update>
+</mapper>    

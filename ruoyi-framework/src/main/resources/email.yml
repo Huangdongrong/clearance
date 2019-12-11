@@ -1,0 +1,11 @@
+
+# 邮件配置
+email: 
+  # 发送者配置
+  sender:
+    # 发送者姓名
+    name: 青马跨境仓储
+    # 发送者姓名
+    address: ******@qingmakuajing.com
+    # 发送者邮件地址
+    passwd: ******

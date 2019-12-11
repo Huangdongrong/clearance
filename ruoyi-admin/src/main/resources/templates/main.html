@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html  lang="zh" xmlns:th="http://www.thymeleaf.org">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <!--360浏览器优先以webkit内核解析-->
+        <title>青马跨境介绍</title>
+        <link rel="shortcut icon" href="favicon.ico">
+        <link href="../static/css/bootstrap.min.css" th:href="@{/css/bootstrap.min.css}" rel="stylesheet"/>
+        <link href="../static/css/font-awesome.min.css" th:href="@{/css/font-awesome.min.css}" rel="stylesheet"/>
+        <link href="../static/css/main/animate.min.css" th:href="@{/css/main/animate.min.css}" rel="stylesheet"/>
+        <link href="../static/css/main/style.min862f.css" th:href="@{/css/main/style.min862f.css}" rel="stylesheet"/>
+    </head>
+
+    <body class="gray-bg">
+        <div class="row  border-bottom white-bg dashboard-header">
+            <div class="col-sm-5">
+                <h2>青马跨境电子商务有限公司</h2>
+                <p>中国（四川）自由贸易试验区成都市青白江祥福镇香岛大道1533号成都铁路保税物流中心(B型) 三号保税仓库三号分区</p>
+                <p>
+                    <b>当前版本：</b><span>v[[${version}]]</span>
+                </p>
+                <p>
+                    <span class="label label-warning">&yen;</span>
+                </p>
+                <br>
+                <p>
+                    <a class="btn btn-white btn-bitbucket" href="http://qingmakuajing.com" target="_blank">
+                        <i class="fa fa-home"></i> 访问主页
+                    </a>
+                </p>
+            </div>
+        </div>
+        <div class="wrapper wrapper-content">
+            <div class="row">
+                <div class="col-sm-4">
+
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <h5>联系信息</h5>
+
+                        </div>
+                        <div class="ibox-content">
+                            <p><i class="fa fa-send-o"></i> 官网：<a href="http://www.qingmakuajing.com" target="_blank">http://www.qingmakuajing.com</a>
+                            </p>
+                            <p><i class="fa fa-qq"></i> QQ群：<a href="https://jq.qq.com/?_wv=1027&k=5Ofd4Pb" target="_blank">868448954</a>
+                            </p>
+                            <p><i class="fa fa-weixin"></i> 微信：<a href="javascript:;">/ *醉生梦死</a>
+                            </p>
+                            <p><i class="fa fa-credit-card"></i> 支付宝：<a href="javascript:;" class="支付宝信息">/ *醉生梦死</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <h5>更新日志</h5>
+                        </div>
+                        <div class="ibox-content no-padding">
+                            <div class="panel-body">
+                                <div class="panel-group" id="version">
+                                    <div class="panel panel-default">
+                                        <div class="panel-heading">
+                                            <h5 class="panel-title">
+                                                <a data-toggle="collapse" data-parent="#version" href="#v34">v3.4.0</a><code class="pull-right">2019.06.21</code>
+                                            </h5>
+                                        </div>
+                                        <div id="v34" class="panel-collapse collapse in">
+                                            <div class="panel-body">
+                                                <ol>
+                                                    <li>新建项目，增加清关功能</li>
+                                                    <li>其他细节优化</li>
+                                                </ol>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="ibox float-e-margins">
+                        <div class="ibox-title">
+                            <h5>捐赠</h5>
+                        </div>
+                        <div class="ibox-content">
+                            <div class="alert alert-warning">
+                                请作者喝杯咖啡（点击图片放大）
+                            </div>
+                            <p id="pay-qrcode">
+                                <a href="javascript:;"><img th:src="@{/img/pay.png}" width="100%" alt="请使用手机支付宝或者微信扫码支付">
+                                </a>
+                            </p>
+
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script th:src="@{/js/jquery.min.js}"></script>
+        <script th:src="@{/js/bootstrap.min.js}"></script>
+        <script th:src="@{/ajax/libs/layer/layer.min.js}"></script>
+        <script type="text/javascript">
+            $('#pay-qrcode').click(function () {
+                var html = $(this).html();
+                parent.layer.open({
+                    title: false,
+                    type: 1,
+                    closeBtn: false,
+                    shadeClose: true,
+                    area: ['600px', 'auto'],
+                    content: html
+                });
+            });
+        </script>
+    </body>
+</html>

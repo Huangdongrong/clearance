@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.YouzanUserTokenMapper">
+    <resultMap type="YouzanUserToken" id="YouzanUserTokenResult">
+        <id     property="id"      column="id"      />
+        <result property="phone"    column="phone"    />
+        <result property="kdtId"    column="kdt_id"    />
+        <result property="appId"     column="app_id"     />
+        <result property="shopName"   column="shop_name"   />
+        <result property="userId"    column="user_id"    />
+        <result property="remark"    column="remark"    />
+        <result property="createBy"      column="create_by"      />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateBy"      column="update_by"      />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+    
+    <sql id="selectPlatVo">
+        select `id`, `phone`, `kdt_id`, `app_id`, `shop_name`, `user_id`, 
+               `create_by`, `create_time`, `update_by`, `update_time`, `remark` 
+        from qm_yz_user_token
+    </sql>
+    
+    <select id="getOne"  parameterType="String" resultMap="YouzanUserTokenResult">
+        <include refid="selectPlatVo"/>
+        where 1 = 1
+        <if test='userId != null and userId != ""'>
+            AND `userId` = #{userId,jdbcType=VARCHAR}
+        </if>
+        order by `update_time` desc limit 1
+    </select>
+    
+    <insert id="insert" parameterType="YouzanUserToken">
+        insert into qm_yz_user_token(`id`, `phone`, `kdt_id`, `app_id`, `shop_name`, `user_id`,
+        `create_by`, `create_time`, `update_by`, `update_time`, `remark`)
+        values(#{id,jdbcType=VARCHAR}, #{phone,jdbcType=VARCHAR}, #{kdtId,jdbcType=VARCHAR}, #{appId,jdbcType=VARCHAR}, #{shopName,jdbcType=VARCHAR},
+        #{userId,jdbcType=VARCHAR}, #{createBy,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}, #{updateBy,jdbcType=VARCHAR}, #{updateTime,jdbcType=TIMESTAMP}, #{remark,jdbcType=VARCHAR})
+    </insert>
+</mapper>    

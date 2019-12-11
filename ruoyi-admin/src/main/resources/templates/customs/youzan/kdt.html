@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
+<head>
+    <th:block th:include="include :: header('有赞平台商铺列表')" />
+    <link th:href="@{/css/order.css}" rel="stylesheet"/>
+</head>
+<body class="gray-bg">
+    <div class="container-div">
+        <div class="row">
+            <div class="col-sm-12 search-collapse">
+                <form id="kdt-form">
+                    <div class="select-list">
+                        <ul>
+                            <li>
+                                关键字：<input type="text" name="searchValue" id="searchValue"/>
+                            </li>
+                            <li>
+                                店铺状态：<select name="status">
+                                    <option value="-1">所有</option>
+                                    <option th:each="enum:${T(com.ruoyi.yz.enums.KdtStatus).values()}" th:value="${enum.name()}" th:text="${enum.getValue()}">
+                                    </option>
+                                </select>
+                            </li>
+                            <li class="select-time">
+                                <label>更新时间： </label>
+                                <input type="text" class="time-input" id="startTime" placeholder="开始时间" name="createTime"/>
+                                <span>-</span>
+                                <input type="text" class="time-input" id="endTime" placeholder="结束时间" name="updateTime"/>
+                            </li>
+                            <li>
+                                <a class="btn btn-primary btn-rounded btn-sm" onclick="$.table.search()"><i class="fa fa-search"></i>&nbsp;搜索</a>
+                                <a class="btn btn-warning btn-rounded btn-sm" onclick="$.form.reset()"><i class="fa fa-refresh"></i>&nbsp;重置</a>
+                            </li>
+                        </ul>
+                    </div>
+                </form>
+            </div>
+            <div class="btn-group-sm" id="toolbar" role="group">
+                <a class="btn btn-danger btn-del" onclick="$.operate.removeAll()" shiro:hasPermission="customs:youzan:admin">
+                    <i class="fa fa-remove"></i> 删除
+                </a>
+                <a class="btn btn-success btn-del" onclick="$.operate.recoveryAll()" shiro:hasPermission="customs:youzan:admin">
+                    <i class="fa fa-paper-plane-o"></i> 恢复
+                </a>
+            </div>
+            <div class="col-sm-12 select-table table-striped">
+                <table id="bootstrap-table" data-mobile-responsive="true"></table>
+            </div>
+        </div>
+    </div>
+    <th:block th:include="include :: footer" />
+    <script th:inline="javascript">
+        var adminFlag = [[${@permission.hasPermi('customs:youzan:admin')}]];
+        var prefix = ctx + "customs/youzan";
+        $(function () {
+            var options = {
+                url: prefix + "/kdt/query",
+                recoveryUrl: prefix + "/kdt/recovery/{id}",
+                removeUrl: prefix + "/kdt/remove/{id}",
+                pagination: true,
+                sortName: "updateTime",
+                sortOrder: 'desc',
+                modalName: "有赞店铺",
+                columns: [{
+                        checkbox: true
+                    },
+                    {
+                        field: 'authorityName',
+                        title: '店铺名称'
+                    },
+                    {
+                        field: 'authorityId',
+                        title: '店铺ID'
+                    },
+                    {
+                        field: 'regCode',
+                        title: '海关注册码'
+                    },
+                    {
+                        field: 'status',
+                        title: '状态',
+                        formatter: function (value, row, index) {
+                            var stat = '';
+                            if(value){
+                                switch(value){
+                                    case 'STATUS_VALID':
+                                        stat = '合法';
+                                        break;
+                                    case 'STATUS_WARNING':
+                                        stat = '可疑';
+                                        break;
+                                    case 'STATUS_DELETED':
+                                        stat = '已删除';
+                                        break;
+                                }
+                            }
+                            return stat;
+                        }
+                    },
+                    {
+                        field: 'params',
+                        title: '当月订单',
+                        formatter: function (value, row, index) {
+                            var orders = '';
+                            if(value){
+                                for(var key in value){
+                                    if(key && value[key] && value[key] > 0){
+                                        orders += ("<span>" + key+":"+value[key]+"件</span></br>");
+                                    }
+                                }
+                            }
+                            return orders;
+                        }
+                    },
+                    {
+                        field: 'updateTime',
+                        title: '更新时间',
+                        sortable: true
+                    },
+                    {
+                        field: 'status',
+                        title: '操作',
+                        formatter: function (value, row, index) {
+                            var actions = [];
+                            if(value){
+                                if(value === 'STATUS_DELETED'){
+                                    actions.push('<a class="btn btn-primary btn-xs ' + adminFlag + '" href="javascript:void(0)" onclick="$.operate.recovery(\'' + row.id + '\')"><i class="fa fa-refresh"></i>恢复</a> ');
+                                }else{
+                                    actions.push('<a class="btn btn-danger btn-xs ' + adminFlag + '" href="javascript:void(0)" onclick="$.operate.remove(\'' + row.id + '\')"><i class="fa fa-remove"></i>删除</a> ');
+                                }
+                                actions.push('<a class="btn btn-primary btn-xs ' + adminFlag + '" href="javascript:void(0)" onclick="vieworders(\'' + row.authorityId + '\')"><i class="fa fa-refresh"></i>查看订单</a> ');
+                            }
+                            return actions.join('');
+                        }
+                    }
+                ]
+            };
+            $.table.init(options);
+        });
+        
+        function vieworders(authId){
+            if(authId){
+                $.modal.openTab("店铺订单列表", prefix + "/kdt/orders?authId=" + authId);
+            }
+        }
+    </script>
+</body>
+</html>

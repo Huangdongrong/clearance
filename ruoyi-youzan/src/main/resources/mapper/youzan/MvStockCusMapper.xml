@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.yz.mapper.MvStockCusMapper">
+    <resultMap type="MvStockCusEntity" id="MvStockCusEntityResult">
+        <id     property="id"      column="id"      />
+        <result property="cusCode"    column="cus_code"    />
+        <result property="kucType"    column="kuctype"    />
+        <result property="goodsId"     column="goods_id"     />
+        <result property="shpMingCheng"     column="shp_ming_cheng"     />
+        <result property="goodsQua"     column="goods_qua"     />
+    </resultMap>
+    
+    <sql id="selectMvStockVo">
+        select `id`, `cus_code`, `goods_id`, `shp_ming_cheng`, `goods_qua`, `kuctype`
+        from mv_stock_cus
+    </sql>
+    
+    <select id="getPageList" parameterType="MvStockCusEntity" resultMap="MvStockCusEntityResult">
+        <include refid="selectMvStockVo"/>
+        where `kuctype` like '%库存%'
+        <if test='entity.cusCode != null and entity.cusCode != ""'>
+            AND `cus_code` = #{entity.cusCode}
+        </if>
+        <if test='entity.searchValue != null and entity.searchValue != ""'>
+            AND (`shp_ming_cheng` LIKE CONCAT('%',#{entity.searchValue}, '%')
+                 OR `goods_id` LIKE CONCAT('%',#{entity.searchValue}, '%'))
+        </if>
+        <!-- 数据范围过滤 -->
+        ${entity.params.dataScope}
+        order by `goods_id` ASC
+    </select> 
+</mapper>
