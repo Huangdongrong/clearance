@@ -6,6 +6,7 @@
 //
 package com.ruoyi.yz.customs.order;
 
+import com.ruoyi.common.adapter.CDataAdapter;
 import com.ruoyi.yz.base.BaseCif;
 import com.ruoyi.yz.wuliu.Receiver;
 import java.math.BigDecimal;
@@ -16,6 +17,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 /**
  * <p>
@@ -158,6 +160,7 @@ public class OrderHead extends BaseCif {
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
     private String buyerTelephone;
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     private String note;
     @XmlTransient
     private Receiver receiver;

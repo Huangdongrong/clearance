@@ -16,8 +16,6 @@ import java.util.concurrent.Callable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import com.ruoyi.yz.mapper.YouzanKdtMapper;
-import com.ruoyi.yz.mapper.YouzanOrderMapper;
 import com.ruoyi.yz.support.CustomsSupport;
 import com.ruoyi.yz.support.YzOrderCustomSupport;
 import com.youzan.cloud.open.sdk.gen.v4_0_0.model.YouzanTradesSoldGetResult;
@@ -52,7 +50,11 @@ import java.util.Set;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static com.ruoyi.yz.enums.YzOrderStatus.isNeedToClearStatus;
+import com.ruoyi.yz.service.YouzanKdtService;
+import com.ruoyi.yz.service.YouzanOrderService;
 import static com.ruoyi.yz.utils.YouZanUtil.isSeperatedOrder;
+import static com.ruoyi.yz.utils.YouZanUtil.updateCorpNo;
+import static java.math.BigDecimal.ROUND_HALF_DOWN;
 
 /**
  *
@@ -63,10 +65,10 @@ public abstract class PullOrdersFromYzThread implements Callable<Integer> {
     private static final Logger LOG = LoggerFactory.getLogger(PullOrdersFromYzThread.class);
 
     @Autowired
-    protected YouzanKdtMapper youzanKdtMapper;
+    protected YouzanKdtService youzanKdtService;
 
     @Autowired
-    protected YouzanOrderMapper youzanOrderMapper;
+    protected YouzanOrderService youzanOrderService;
 
     @Autowired
     protected MvGoodsService mvGoodsService;
@@ -136,27 +138,42 @@ public abstract class PullOrdersFromYzThread implements Callable<Integer> {
             List<YouzanOrder> existedOrders = existedOrders(trans);
             if (isNotEmpty(existedOrders)) {
                 existedOrders.forEach((yo) -> {
-                    YouzanOrder yoo = IteratorUtils.find(originOrders.iterator(),
+                    final YouzanOrder yoo = IteratorUtils.find(originOrders.iterator(),
                             (YouzanOrder yor) -> equalsIgnoreCase(yo.getTid(), yor.getTid())
                             && equalsIgnoreCase(yo.getKdtId(), yor.getKdtId())
                             && equalsIgnoreCase(yo.getTransaction(), yor.getTransaction())
                             && equalsIgnoreCase(yo.getOrderNo(), yor.getOrderNo()));
                     if (nonNull(yoo)) {
                         //remove order from origin order list
-                        originOrders.remove(yoo);
+                        boolean removed = originOrders.removeIf((YouzanOrder obj) -> equalsIgnoreCase(obj.getTid(), yoo.getTid())
+                                && equalsIgnoreCase(obj.getKdtId(), yoo.getKdtId())
+                                && equalsIgnoreCase(obj.getTransaction(), yoo.getTransaction())
+                                && equalsIgnoreCase(obj.getOrderNo(), yoo.getOrderNo()));
+                        LOG.info("order {} was removed!", yoo);
+
                         //check if already send clear request, if yes ,do not update it.
                         if (!alreadyLocked(yo.getStatus())) {
                             yoo.setId(yo.getId());
-                            yoo.setCreateBy(CREATE_BY_PROGRAM);
+                            yoo.setCopNo(yo.getCopNo());
+                            yoo.setWayBillEnt(yo.getWayBillEnt());
+                            yoo.setWayBillNo(yo.getWayBillNo());
+                            yoo.setCreateBy(yo.getCreateBy());
                             yoo.setCreateTime(yo.getCreateTime());
                             yoo.setUpdateBy(CREATE_BY_PROGRAM);
                             yoo.setUpdateTime(currentTime);
-                            needUpdateOrders.add(yoo);
+                            YouzanOrder needUpdateOrder = updateCorpNo(yoo, yo.getCopNo());
+                            if (nonNull(needUpdateOrder)) {
+                                needUpdateOrders.add(needUpdateOrder);
+                            } else {
+                                LOG.error("failed to update corpNo {} for order {}", yo.getCopNo(), needUpdateOrder);
+                            }
                         } else {
                             LOG.warn("order {} was locked!", yoo.getOrderNo());
                         }
                     }
                 });
+            } else {
+                LOG.error("no existed orders were found:{}", size(existedOrders));
             }
         }
         return needUpdateOrders;
@@ -181,15 +198,15 @@ public abstract class PullOrdersFromYzThread implements Callable<Integer> {
                 // update orders which need to be updated
                 List<YouzanOrder> needUpdateOrders = needUpdateOrders(yzOrders);
                 if (isNotEmpty(needUpdateOrders)) {
-                    int orderNum = youzanOrderMapper.batchUpdate(needUpdateOrders);
+                    int orderNum = youzanOrderService.batchUpdate(needUpdateOrders);
                     LOG.info("batch update {} into database!", orderNum);
                     retNum += orderNum;
                 }
 
                 // batch insert orders which are unique
                 if (isNotEmpty(yzOrders)) {
-                    int insertNum = youzanOrderMapper.batchInsert(yzOrders);
-                    LOG.info("batch insert {} into database!", insertNum);
+                    int insertNum = youzanOrderService.batchInsert(yzOrders);
+                    LOG.info("{} need to be inserted, but batch insert {} into database!", size(yzOrders), insertNum);
                     retNum += insertNum;
                 }
             } else {
@@ -210,9 +227,8 @@ public abstract class PullOrdersFromYzThread implements Callable<Integer> {
     private List<YouzanTradesSoldGetResultOrders> validOrders(List<YouzanTradesSoldGetResultOrders> originOrders) {
         if (isNotEmpty(originOrders)) {
             String cusCode = mvGoodsService.getCusCodeByAuthId(kdt.getAuthorityId());
-            LOG.info("cusCode:{}", cusCode);
             List<String> wmsGoods = mvGoodsService.allShpBianMa(cusCode);
-            LOG.info("goods:{}", wmsGoods);
+            LOG.info("cusCode:{}, goods:{}", cusCode, wmsGoods);
             if (isNotEmpty(wmsGoods)) {
                 List<YouzanTradesSoldGetResultOrders> filteredOrders = new ArrayList<>(size(originOrders));
                 originOrders.forEach((originOrder) -> {
@@ -239,7 +255,7 @@ public abstract class PullOrdersFromYzThread implements Callable<Integer> {
     public Integer call() throws Exception {
         int retNum = 0;
         final List<Integer> retNums = new ArrayList<>();
-        if (nonNull(kdt) && nonNull(youzanOrderMapper)) {
+        if (nonNull(kdt) && nonNull(youzanOrderService)) {
             try {
                 YouzanTradesSoldGetResult result = getSoldResult();
                 if (nonNull(result)) {
@@ -262,7 +278,7 @@ public abstract class PullOrdersFromYzThread implements Callable<Integer> {
                                             retNums.add(uiNums);
                                         }
                                     } else {
-                                        LOG.warn("is not payed order or was cancelled, not need to clearance");
+                                        LOG.warn("{} is not payed order or was cancelled, not need to clearance", info.getOrderInfo());
                                     }
                                 });
                             } else {
@@ -306,8 +322,9 @@ public abstract class PullOrdersFromYzThread implements Callable<Integer> {
                     order.setId(get32UUID());
                     order.setKdtId(kdtId);
                     order.setOrderNo(head.getOrderNo());
-                    BigDecimal acPaid = head.getActuralPaid();
-                    order.setAmount(nonNull(acPaid) ? acPaid.toString() : "");
+                    BigDecimal acPaid = nonNull(head.getActuralPaid()) ? head.getActuralPaid() : BigDecimal.ZERO;
+                    BigDecimal amount = acPaid.setScale(2, ROUND_HALF_DOWN);
+                    order.setAmount(nonNull(amount) ? amount.toString() : "");
                     order.setStatus(STATUS_INIT.name());
                     order.setStatusMessage(STATUS_INIT.getValue());
                     order.setTid(head.getTid());
@@ -334,6 +351,6 @@ public abstract class PullOrdersFromYzThread implements Callable<Integer> {
     }
 
     private List<YouzanOrder> existedOrders(List<String> trans) {
-        return isNotEmpty(trans) ? youzanOrderMapper.existed(trans, startTime, endTime) : null;
+        return isNotEmpty(trans) ? youzanOrderService.existed(trans, startTime, endTime) : null;
     }
 }

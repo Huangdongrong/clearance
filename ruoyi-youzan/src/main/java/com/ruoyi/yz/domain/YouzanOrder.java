@@ -26,7 +26,7 @@ public class YouzanOrder extends BaseQingmaEntity {
     private String copNo;
 
     private String transaction;
-    
+
     private boolean seperated;
 
     private String kdtId;
@@ -78,8 +78,6 @@ public class YouzanOrder extends BaseQingmaEntity {
         this.setSyncPayStatus(null);
         this.setAlreadySyncWuliu(false);
         this.setSyncWuliuStatus(null);
-        this.setWayBillEnt(null);
-        this.setWayBillNo(null);
         this.setUpdateTime(Calendar.getInstance().getTime());
         this.setUpdateBy(CREATE_BY_PROGRAM);
         this.setRemark("重置订单清关信息！");

@@ -2,24 +2,18 @@
 <html lang="zh" xmlns:th="http://www.thymeleaf.org" xmlns:shiro="http://www.pollix.at/thymeleaf/shiro">
 <head>
     <th:block th:include="include :: header('有赞平台订单列表')" />
-    <link th:href="@{/css/order.css}" rel="stylesheet"/>
+    <link th:href="@{/css/order.css?ver=1.2.0}" rel="stylesheet"/>
 </head>
 <body class="gray-bg">
     <div class="container-div">
         <div class="row">
             <div class="col-sm-12 search-collapse">
                 <form id="order-form" th:object="${order}">
+                    <input name="status" type="hidden"/>
                     <div class="select-list">
                         <ul>
                             <li>
                                 关键字：<input type="text" name="searchValue" id="searchValue"/>
-                            </li>
-                            <li>
-                                订单状态：<select name="status">
-                                    <option value="-1">所有</option>
-                                    <option th:each="enum:${T(com.ruoyi.yz.enums.OrderStatus).values()}" th:value="${enum.getKey()}" th:text="${enum.getValue()}">
-                                    </option>
-                                </select>
                             </li>
                             <li class="select-time">
                                 <label>创建时间： </label>
@@ -37,20 +31,40 @@
             </div>
             <div class="btn-group-sm" id="toolbar" role="group">
                 <a id="kdtId" href="javascript:void(0)" class="btn btn-secondary disabled"></a>
-                <a class="btn btn-success btn-del disabled" onclick="$.yzorder.executeAll()" shiro:hasPermission="customs:youzan:execute">
+                <!--a class="btn btn-success btn-del disabled" onclick="$.yzorder.executeAll()" shiro:hasPermission="customs:youzan:execute">
                     <i class="fa fa-paper-plane-o"></i> 清关
-                </a>
+                </a-->
                 <a class="btn btn-default btn-del disabled" onclick="$.operate.discardAll()" shiro:hasPermission="customs:youzan:remove">
                     <i class="fa fa-trash"></i> 废弃
                 </a>
                 <a class="btn btn-danger btn-del disabled" onclick="$.operate.removeAll()" shiro:hasPermission="customs:youzan:remove">
                     <i class="fa fa-remove"></i> 删除
                 </a>
-                <a class="btn btn-warning" onclick="$.table.exportExcel()" shiro:hasPermission="customs:youzan:export">
+                <a class="btn btn-warning" onclick="$.yzorder.exptExcel()" shiro:hasPermission="customs:youzan:export">
                     <i class="fa fa-download"></i> 导出
                 </a>
             </div>
-            <div class="col-sm-12 select-table table-striped">
+            <ul class="nav nav-tabs" role="tablist">
+                <li role="presentation">
+                    <a href="#tab-home" data-src="home" role="tab" data-toggle="tab">全部</a>
+                </li>
+                <li role="presentation" class="active">
+                    <a href="#tab-home" data-src="init" role="tab" data-toggle="tab">未清关</a>
+                </li>
+                <li role="presentation">
+                    <a href="#tab-home" data-src="ongoing" role="tab" data-toggle="tab">清关中</a>
+                </li>
+                <li role="presentation">
+                    <a href="#tab-home" data-src="success" role="tab" data-toggle="tab">成功</a>
+                </li>
+                <li role="presentation">
+                    <a href="#tab-home" data-src="failed" role="tab" data-toggle="tab">失败</a>
+                </li>
+                <li role="presentation">
+                    <a href="#tab-home" data-src="dismiss" role="tab" data-toggle="tab">废弃</a>
+                </li>
+            </ul>
+            <div class="col-sm-12 select-table table-striped" id="tab-home">
                 <table id="bootstrap-table" data-mobile-responsive="true"></table>
             </div>
         </div>
@@ -60,16 +74,31 @@
     var clearFlag = [[${@permission.hasPermi('customs:youzan:execute')}]];
     var removeFlag = [[${@permission.hasPermi('customs:youzan:remove')}]];
     var exportFlag = [[${@permission.hasPermi('customs:youzan:export')}]];
+    var cntyKeys = [[${T(com.ruoyi.yz.enums.Currency).keys()}]];
+    var cntyCnNames = [[${T(com.ruoyi.yz.enums.Currency).cnNames()}]];
+    var statusKeys = [[${T(com.ruoyi.yz.enums.OrderStatus).keys()}]];
+    var statusValues = [[${T(com.ruoyi.yz.enums.OrderStatus).vals()}]];
     var prefix = ctx + "customs/youzan";
-    $(function () {
-        var cntyKeys = [[${T(com.ruoyi.yz.enums.Currency).keys()}]];
-        var cntyCnNames = [[${T(com.ruoyi.yz.enums.Currency).cnNames()}]];
+    $(function() {
+        $("ul li").click(function(){
+            var data = $("a", this).attr("data-src");
+            if(data){
+                eval(data + "Table()");
+            }
+            $("a", this)[0].click();
+        });
+        showTable();
+    });
+    
+    function defaultOptions(){
         var options = {
             url: prefix + "/list",
             executeUrl: prefix + "/execute/{id}",
+            exeRetryUrl: prefix + "/exeretry/{id}",
             recoveryUrl: prefix + "/recovery/{id}",
             discardUrl: prefix + "/discard/{id}",
             removeUrl: prefix + "/remove/{id}",
+            roweditUrl: prefix + "/rowedit",
             exportUrl: prefix + "/export",
             pagination: true,
             sortName: "updateTime",
@@ -79,13 +108,36 @@
                     checkbox: true
                 },
                 {
+                    field: 'id',
+                    title: '序号',
+                    visible: false
+                },
+                {
                     field: 'tid',
                     title: '订单号'
                 },
                 {
                     field: 'amount',
-                    title: '订单总额(含税)',
-                    sortable: true
+                    title: '订单额(元)',
+                    class: 'W200',
+                    sortable: true,
+                    formatter: function (value, row, index) {
+                        var amount = "实付(含税):";
+                        if(row){
+                            if(row.amount){
+                                amount += $.common.toDecimal(row.amount);
+                            }
+                            if(row.body && row.body.order && row.body.order.orderHead){
+                                if(row.body.order.orderHead.discount){
+                                    amount += (", 折扣:" + row.body.order.orderHead.discount);
+                                }
+                                if(row.body.order.orderHead.taxTotal){
+                                    amount += (", 税:" + row.body.order.orderHead.taxTotal);
+                                }
+                            }
+                        }
+                        return amount;
+                    }
                 },
                 {
                     field: 'searchValue',
@@ -131,8 +183,8 @@
                     formatter: function (value, row, index) {
                         if (row && index == 0) {
                             $.operate.asynPost(prefix +"/queryKdt/" + row.kdtId, null, function(data){
-                                if(data && data.data){
-                                    $('#kdtId').text("店铺:" + data.data);
+                                if(data && data.msg){
+                                    $('#kdtId').text("店铺:" + data.msg);
                                 }
                             });
                         }
@@ -149,82 +201,147 @@
                             }
                             if(value === "STATUS_DISCARDED"){
                                 actions.push('<a class="btn btn-primary btn-xs ' + removeFlag + '" href="javascript:void(0)" onclick="$.operate.recovery(\'' + row.id + '\')"><i class="fa fa-refresh"></i>恢复</a> ');
-                            }  
+                            }
+                            if(value === "STATUS_REJECTED"){
+                                actions.push('<a class="btn btn-warning btn-xs ' + clearFlag + '" href="javascript:void(0)" onclick="$.yzorder.exeretry(\'' + row.id + '\')"><i class="fa fa-undo"></i>重试</a> ');
+                            }
                         }
                         return actions.join('');
                     }
                 }],
             detailView: true
         };
-        
-        $.table.init(options);
-        
-        $('table').on('expand-row.bs.table', function (e, index, row, $detail) {
-            var html = '';
-            if(row && row.body && row.body.order && row.body.order.orderList){
-                var orders = row.body.order.orderList;
-                for(var idx = 0; idx<orders.length; idx ++){
-                    var order = orders[idx];
-                    html += '<div class="table-detail">';
-                    html += '  <div class="row">';
-                    html += '    <div class="col-xs-12 col-sm-12">';
-                    html += '      <div class="space visible-xs"></div>';
-                    html += '      <div class="profile-user-info profile-user-info-striped">';
-                    html += '        <div class="profile-info-row">';
-                    html += '          <div class="profile-info-name">商品信息</div>';
-                    var item = "名称:" + order.itemName;
-                    if(order.itemNo){
-                        item += (";&nbsp;&nbsp;" + "货号:" + order.itemNo);
-                    }
-                    if(order.itemDescribe){
-                        item += (";&nbsp;&nbsp;" + "描述:" + order.itemDescribe);
-                    }
-                    if(order.country){
-                        var ctryCnName = '';
-                        if(cntyKeys && cntyCnNames){
-                           for(var idx=0; idx<cntyKeys.length; idx ++){
-                               if(cntyKeys[idx] === order.country){
-                                    ctryCnName = cntyCnNames[idx];
-                                    break;
-                               }
-                           }  
-                        }
-                        item += (";&nbsp;&nbsp;" + "原产国:" + ctryCnName);
-                    }
-                    html += '          <div class="profile-info-value"><span>' + item + '</span></div>';
-                    html += '        </div>';
-                    html += '        <div class="profile-info-row">';
-                    html += '          <div class="profile-info-name">订单信息</div>';
-                    
-                    var odStr = "";
-                    if(row.tid){
-                        odStr += ("订单号" + row.tid);
-                    }
-                    if(row.orderNo){
-                        odStr += (";&nbsp;&nbsp;" + "子订单号:" + row.orderNo);
-                    }
-                    if(row.transaction){
-                        odStr += (";&nbsp;&nbsp;" + "支付流水号:" + row.transaction);
-                    }
-                    html += '          <div class="profile-info-value"><span>' + odStr + '</span></div>';
-                    html += '        </div>';
-                    html += '        <div class="profile-info-row">';
-                    html += '          <div class="profile-info-name">个数</div>';
-                    html += '          <div class="profile-info-value"><span>' + order.qty + '</span></div>';
-                    html += '        </div>';
-                    html += '        <div class="profile-info-row">';
-                    html += '          <div class="profile-info-name">总价(不含税)</div>';
-                    html += '          <div class="profile-info-value"><span>' + order.totalPrice + '元</span></div>';
-                    html += '        </div>';
-                    html += '      </div>';
-                    html += '    </div>';
-                    html += '  </div>';
-                    html += '</div>';
+        return options;
+    }
+    
+    function expandTable(tbId){
+        if(tbId){
+            $('#' + tbId).on('expand-row.bs.table', function (e, index, row, $detail) {
+             var html = '';
+             if(row && row.body && row.body.order && row.body.order.orderList){
+                 var orders = row.body.order.orderList;
+                 for(var idx = 0; idx<orders.length; idx++){
+                     var order = orders[idx];
+                     html += '<div class="table-detail">';
+                     html += '  <div class="row">';
+                     html += '    <div class="col-xs-12 col-sm-12">';
+                     html += '      <div class="space visible-xs"></div>';
+                     html += '      <div class="profile-user-info profile-user-info-striped">';
+                     html += '        <div class="profile-info-row">';
+                     html += '          <div class="profile-info-name">商品信息</div>';
+                     var item = "名称:" + order.itemName;
+                     if(order.itemNo){
+                         item += (";&nbsp;&nbsp;" + "货号:" + order.itemNo);
+                     }
+                     if(order.itemDescribe){
+                         item += (";&nbsp;&nbsp;" + "描述:" + order.itemDescribe);
+                     }
+                     if(order.country){
+                         var ctryCnName = '';
+                         if(cntyKeys && cntyCnNames){
+                            for(var idx2=0; idx2<cntyKeys.length; idx2++){
+                                if(cntyKeys[idx2] === order.country){
+                                     ctryCnName = cntyCnNames[idx2];
+                                     break;
+                                }
+                            }  
+                         }
+                         item += (";&nbsp;&nbsp;" + "原产国:" + ctryCnName);
+                     }
+                     html += '          <div class="profile-info-value"><span>' + item + '</span></div>';
+                     html += '        </div>';
+                     html += '        <div class="profile-info-row">';
+                     html += '          <div class="profile-info-name">订单信息</div>';
+
+                     var odStr = "";
+                     if(row.tid){
+                         odStr += ("订单号" + row.tid);
+                     }
+                     if(row.orderNo){
+                         odStr += (";&nbsp;&nbsp;" + "子订单号:" + row.orderNo);
+                     }
+                     if(row.transaction){
+                         odStr += (";&nbsp;&nbsp;" + "支付流水号:" + row.transaction);
+                     }
+                     html += '          <div class="profile-info-value"><span>' + odStr + '</span></div>';
+                     html += '        </div>';
+                     html += '        <div class="profile-info-row">';
+                     html += '          <div class="profile-info-name">个数</div>';
+                     html += '          <div class="profile-info-value"><span>' + order.qty + '</span></div>';
+                     html += '        </div>';
+                     html += '        <div class="profile-info-row">';
+                     html += '          <div class="profile-info-name">总价(不含税)</div>';
+                     html += '          <div class="profile-info-value"><span>' + order.totalPrice + '元</span></div>';
+                     html += '        </div>';
+                     html += '      </div>';
+                     html += '    </div>';
+                     html += '  </div>';
+                     html += '</div>';
+                 }
+             }
+             $detail.html(html);
+         });
+        }else{
+            console.log("tbId:" + tbId);
+        }
+    }
+    
+    function initTable(){
+        fromatTable('bootstrap-table', "待申请");
+    }
+    
+    function ongoingTable(){
+        fromatTable('bootstrap-table', "清关中");
+    }
+    
+    function successTable(){
+        fromatTable('bootstrap-table', "清关成功");
+    }
+    
+    function failedTable(){
+        fromatTable('bootstrap-table', "清关失败");
+    }
+    
+    function dismissTable(){
+        fromatTable('bootstrap-table', "订单废弃");
+    }
+    
+    function homeTable(){
+        fromatTable('bootstrap-table', "全部");
+    }
+    
+    function showTable(){
+        var opts = defaultOptions();
+        if(opts){
+            $("input[name='status']").val(statusKeyByValue("待申请"));
+            $.table.init(opts);
+            expandTable('bootstrap-table');
+        }
+    }
+    
+    function fromatTable(tableId, statusValue){
+        var opts = defaultOptions();
+        if(opts){
+            opts = $.extend(opts, {id: tableId});
+            $("input[name='status']").val(statusKeyByValue(statusValue));
+            $.table.refresh(opts);
+            expandTable(tableId);
+        }
+    }
+    
+    function statusKeyByValue(value){
+        var statusKey = "-1";
+        if(statusKeys && statusValues){
+            for(var idx3=0; idx3<statusValues.length; idx3++){
+                if(statusValues[idx3] === value){
+                     statusKey = statusKeys[idx3];
+                     break;
                 }
-            }
-            $detail.html(html);
-        });
-    });
+            }  
+        }
+        return statusKey;
+    }
+    
 </script>
 </body>
 </html>

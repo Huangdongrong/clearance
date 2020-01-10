@@ -8,6 +8,7 @@
 
 package com.ruoyi.yz.customs.order;
 
+import com.ruoyi.common.adapter.CDataAdapter;
 import com.ruoyi.yz.base.BaseCif;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -17,6 +18,7 @@ import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlTransient;
 import javax.xml.bind.annotation.XmlType;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 
 /**
@@ -76,6 +78,7 @@ public class OrderList  extends BaseCif{
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
     private String itemNo;
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     private String itemName;
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
     private String itemDescribe;
@@ -84,6 +87,7 @@ public class OrderList  extends BaseCif{
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
     private String unit;
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     private String gmodel;
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
     private BigDecimal qty;
@@ -96,6 +100,7 @@ public class OrderList  extends BaseCif{
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
     private String country;
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     private String note;
     @XmlTransient
     private String customsBianMa;

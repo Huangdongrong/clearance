@@ -40,19 +40,19 @@ import org.springframework.web.client.RestTemplate;
 public class YundaKjOrderServiceImpl implements YundaKjOrderService {
 
     @Autowired
-    private YundaKjProperties yundaKjProperties;
+    private YundaProxyCustomsProperties yundaProxyCustomsProperties;
 
     @Autowired
-    private YundaProxyCustomsProperties yundaProxyCustomsProperties;
+    private CustomsPlatMapper customsPlatMapper;
+    
+    @Autowired
+    private YundaKjProperties yundaKjProperties;
 
     @Autowired
     private RestTemplate restTemplate;
 
     @Autowired
     private WuliuKjPlatMapper wuliuKjPlatMapper;
-
-    @Autowired
-    private CustomsPlatMapper customsPlatMapper;
 
     @Override
     public YdCreateResponses sendRequest(YdCreateRequest request) {
@@ -101,5 +101,4 @@ public class YundaKjOrderServiceImpl implements YundaKjOrderService {
         }
         return resp;
     }
-
 }

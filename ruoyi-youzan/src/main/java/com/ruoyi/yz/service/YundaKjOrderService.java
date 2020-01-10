@@ -19,7 +19,6 @@ import com.ruoyi.yz.wuliu.ydkj.update.YdUpdateResponses;
  * @author wmao
  */
 public interface YundaKjOrderService {
-    
     YdCreateResponses sendRequest(YdCreateRequest request);
     
     YdUpdateResponses updateRequest(YdUpdateRequest request);

@@ -7,7 +7,6 @@ package com.ruoyi.yz.utils;
 
 import static com.ruoyi.common.utils.UuidUtil.get32UUID;
 import com.ruoyi.yz.domain.WuliuPlat;
-import com.ruoyi.yz.enums.WuliuComp;
 import java.util.Calendar;
 import static java.util.Objects.nonNull;
 import static org.apache.commons.lang3.StringUtils.endsWithIgnoreCase;

@@ -163,7 +163,14 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             AND `kdt_id` = #{order.kdtId, jdbcType=VARCHAR}
         </if>
         <if test='order.status != null and order.status != "" and order.status != "-1"'>
-            AND `status` = #{order.status, jdbcType=VARCHAR}
+            <choose>
+                <when test='order.status == "STATUS_SUCCESS" or order.status == "STATUS_COMPLETED"'>
+                    AND `status` in ('STATUS_SUCCESS', 'STATUS_COMPLETED')
+                </when>
+                <otherwise>
+                    AND `status` = #{order.status, jdbcType=VARCHAR}
+                </otherwise>
+            </choose>
         </if>
         <if test='order.params != null and order.params.size() > 0'>
             <if test='order.params.beginTime != null'>
@@ -234,6 +241,24 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
         </if>
         <if test="endTime != null">
             AND update_time <![CDATA[<]]> #{endTime}
+        </if>
+        ORDER by `update_time` ASC LIMIT 1
+    </select>
+    
+    <select id="existedOrders" resultMap="YouzanOrderResult">
+        <include refid="selectYzOrderVo"/>
+        where 1 = 1 
+        <if test="orderNos != null and orderNos.size > 0">
+            AND `order_no` in 
+            <foreach item="orderNo" index="index" collection="orderNos" open="(" separator="," close=")">  
+                #{orderNo}  
+            </foreach>  
+        </if>
+        <if test="startTime != null">
+            AND `update_time` <![CDATA[>=]]> #{startTime}
+        </if>
+        <if test="endTime != null">
+            AND `update_time` <![CDATA[<]]> #{endTime}
         </if>
         ORDER by `update_time` ASC LIMIT 1
     </select>
@@ -325,16 +350,16 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
                     <if test='order.wayBillNo != null and order.wayBillNo != ""'>
                         `way_bill_no`=#{order.wayBillNo,jdbcType=VARCHAR}, 
                     </if>
-                    <if test='order.alreadySyncPay != null'>
+                    <if test="order.alreadySyncPay != null">
                         `already_sync_pay`=#{order.alreadySyncPay,jdbcType=BIT}, 
                     </if>
-                    <if test='order.alreadySyncOrder != null'>
+                    <if test="order.alreadySyncOrder != null">
                         `already_sync_order`=#{order.alreadySyncOrder,jdbcType=BIT}, 
                     </if>
-                    <if test='order.alreadySyncWuliu != null'>
+                    <if test="order.alreadySyncWuliu != null">
                         `already_sync_wuliu`=#{order.alreadySyncWuliu,jdbcType=BIT}, 
                     </if>
-                    <if test='order.alreadySyncDetails != null'>
+                    <if test="order.alreadySyncDetails != null">
                         `already_sync_details`=#{order.alreadySyncDetails,jdbcType=BIT}, 
                     </if>
                     <if test="order.syncPayStatus != null">
@@ -452,5 +477,52 @@ PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
             `update_time`=#{updateTime,jdbcType=TIMESTAMP}
         </if>
         where `id` = #{id, jdbcType=VARCHAR}
+    </update>
+    
+    <select id="queryExisted" resultMap="YouzanOrderResult" parameterType="java.util.Map">
+        <include refid="selectYzOrderVo"/>
+        where 1=1
+        <if test='params.tid != null and params.tid != ""'>
+            AND `tid`=#{params.tid, jdbcType=VARCHAR}
+        </if>
+        <if test='params.orderNo != null and params.orderNo != ""'>
+            AND `order_no`=#{params.orderNo,jdbcType=VARCHAR}
+        </if>
+        <if test='params.startTime != null'>
+            AND `update_time` <![CDATA[>=]]> #{params.startTime, jdbcType=TIMESTAMP}
+        </if>
+        <if test='params.endTime != null'>
+            AND `update_time` <![CDATA[<]]> #{params.endTime, jdbcType=TIMESTAMP}
+        </if>
+    </select>
+    
+    <update id="batchClearStatus" parameterType="List">
+        <if test="orders != null and orders.size > 0">
+            <foreach collection="orders" separator=";" item="order">
+                update qm_yz_order
+                <set> 
+                    `sync_pay_status`= null, 
+                    `sync_order_status`= null, 
+                    `sync_wuliu_status`= null, 
+                    `sync_details_status`= null, 
+                    `already_sync_pay`= false,
+                    `already_sync_order`= false, 
+                    `already_sync_wuliu`= false,
+                    `already_sync_details`= false,
+                    <if test='status != null and status != ""'>
+                        `status`=#{order.status, jdbcType=VARCHAR}, 
+                    </if>
+                    <if test='statusMessage != null and statusMessage != ""'>
+                        `status_message`=#{order.statusMessage, jdbcType=VARCHAR}, 
+                    </if>
+                    <if test="order.body != null">
+                        `body`=#{order.body, jdbcType=OTHER, typeHandler=com.ruoyi.yz.mybatis.CEB311MessageTypeHandler}, 
+                    </if>
+                    `update_by`=#{order.updateBy, jdbcType=VARCHAR},
+                    `update_time`=#{order.updateTime, jdbcType=TIMESTAMP}
+                </set>
+                where `id` = #{order.id,jdbcType=VARCHAR}
+            </foreach>
+        </if>
     </update>
 </mapper>    

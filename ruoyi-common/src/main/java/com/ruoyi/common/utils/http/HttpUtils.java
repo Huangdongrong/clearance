@@ -16,6 +16,8 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSession;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.X509TrustManager;
+import static org.apache.commons.lang3.RegExUtils.replaceAll;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -161,6 +163,14 @@ public class HttpUtils
             }
         }
         return result.toString();
+    }
+    
+    public static String nameReplace(String content){
+        String ctnt =  null;
+        if(isNotBlank(content)){
+            ctnt = replaceAll(content, "&", "&amp;");
+        }
+        return ctnt;
     }
 
     public static String sendSSLPost(String url, String param)

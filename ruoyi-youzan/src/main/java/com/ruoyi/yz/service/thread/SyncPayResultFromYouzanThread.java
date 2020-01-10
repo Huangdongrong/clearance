@@ -8,7 +8,6 @@ package com.ruoyi.yz.service.thread;
 import static com.ruoyi.yz.cnst.Const.CREATE_BY_PROGRAM;
 import static com.ruoyi.yz.cnst.Const.PRE_PROCESS_SUCCEED;
 import com.ruoyi.yz.domain.ClearanceStatus;
-import com.ruoyi.yz.mapper.YouzanOrderMapper;
 import java.util.concurrent.Callable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Scope;
@@ -25,6 +24,7 @@ import static java.net.HttpURLConnection.HTTP_OK;
 import static java.util.Objects.nonNull;
 import static com.ruoyi.yz.cnst.Const.RUOYI_INTERNAL_ERROR;
 import static com.ruoyi.yz.enums.OrderStatus.isReadyApply;
+import com.ruoyi.yz.service.YouzanOrderService;
 import java.util.List;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static com.ruoyi.yz.utils.YouZanUtil.queryReportPayResult;
@@ -42,7 +42,7 @@ public class SyncPayResultFromYouzanThread implements Callable<Integer> {
     private static final Logger LOG = LoggerFactory.getLogger(SyncPayResultFromYouzanThread.class);
     private static final ClearanceStatus DEFAULT_CLEARANCE_ERROR_STATUS = new ClearanceStatus(RUOYI_INTERNAL_ERROR, false, "default error");
     @Autowired
-    protected YouzanOrderMapper youzanOrderMapper;
+    protected YouzanOrderService youzanOrderService;
 
     private List<YouzanOrder> orders;
 
@@ -84,7 +84,7 @@ public class SyncPayResultFromYouzanThread implements Callable<Integer> {
                                 order.setSyncPayStatus(syncPayStatus);
                                 order.setUpdateBy(CREATE_BY_PROGRAM);
                                 order.setUpdateTime(Calendar.getInstance().getTime());
-                                retLen += youzanOrderMapper.update(order);
+                                retLen += youzanOrderService.update(order);
                             } else {
                                 LOG.error("sync pay status is null, pls check it");
                             }

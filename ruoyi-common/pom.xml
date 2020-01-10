@@ -116,6 +116,12 @@
             <groupId>com.qingma</groupId>
             <artifactId>eclipselink</artifactId>
         </dependency>
+        
+        <!-- excel export -->
+        <dependency>
+            <groupId>net.sf.jett</groupId>
+            <artifactId>jett-core</artifactId>
+        </dependency>
 		
     </dependencies>
   

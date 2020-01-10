@@ -200,16 +200,16 @@ public class YzOrderCustomSupport extends CustomsSupport<YouzanTradesSoldGetResu
             BigDecimal taxTotals = BigDecimal.ZERO;
             BigDecimal disCounts = BigDecimal.ZERO;
             BigDecimal actualPaids = BigDecimal.ZERO;
+            BigDecimal freights = BigDecimal.ZERO;
             StringBuilder goodNames = new StringBuilder();
             BigDecimal hqty = BigDecimal.ZERO;
-            Map<Unit, BigDecimal> qtyUnits = new HashMap<>();
+            List<Map<Unit, BigDecimal>> weights = new ArrayList<>();
             for (YouzanTradesSoldGetResultOrders od : orders) {
                 if (nonNull(od)) {
+                    Map<Unit, BigDecimal> qtyUnits = new HashMap<>();
                     OrderList item = new OrderList();
                     item.setGnum(BigInteger.valueOf(idx));
                     item.setItemNo(od.getOuterItemId());
-                    item.setItemName(od.getTitle());
-                    item.setGmodel(od.getTitle());
                     item.setQty(BigDecimal.valueOf(od.getNum()));
                     hqty = hqty.add(item.getQty());
 
@@ -218,43 +218,56 @@ public class YzOrderCustomSupport extends CustomsSupport<YouzanTradesSoldGetResu
                     if (isNotBlank(outerSkuId)) {
                         MvGoodsEntity entity = mvGoodsService.getOne(outerSkuId);
                         if (nonNull(entity)) {
+                            item.setItemName(trim(entity.getShpMingCheng()));
+                            item.setGmodel(trim(entity.getShpMingCheng()));
                             item.setItemRecordNo(entity.getShpCustomsOrderNo());
                             item.setCustomsBianMa(entity.getShpCustomsBianMa());
                             item.setBarCode(entity.getShpTiaoMa());
                             item.setUnit(getKeyByValue(entity.getShpCustomsUnit()));
                             qtyUnits.put(getUnitByValue(entity.getShpCustomsUnit()), item.getQty());
-                            BigDecimal officialQty = nonNull(entity.getShpCustomsOfficialQty()) ? entity.getShpCustomsOfficialQty() : BigDecimal.ONE;
-                            item.setQty1(officialQty.multiply(item.getQty()).setScale(4, ROUND_HALF_DOWN));
+                            BigDecimal officialQty = nonNull(entity.getShpCustomsOfficialQty()) ? entity.getShpCustomsOfficialQty() : null;
+                            if(nonNull(officialQty)){
+                                item.setQty1(nonNull(officialQty) ? officialQty.multiply(item.getQty()).setScale(4, ROUND_HALF_DOWN) : null);
+                                LOG.info("officialQty:{}, qty1:{}", officialQty.toString(), item.getQty1().toString());
+                            }
+                            
                             item.setUnit1(getKeyByValue(entity.getShpCustomsOfficialDanWei()));
-                            qtyUnits.put(getUnitByValue(entity.getShpCustomsOfficialDanWei()), item.getQty1());
-                            BigDecimal secondQty = nonNull(entity.getShpCustomsSecondQty()) ? entity.getShpCustomsSecondQty() : BigDecimal.ONE;
-                            item.setQty2(secondQty.multiply(item.getQty()).setScale(4, ROUND_HALF_DOWN));
+                            Unit officialKey = getUnitByValue(entity.getShpCustomsOfficialDanWei());
+                            if (nonNull(officialKey)) {
+                                qtyUnits.put(officialKey, item.getQty1());
+                            }
+                            BigDecimal secondQty = nonNull(entity.getShpCustomsSecondQty()) ? entity.getShpCustomsSecondQty() : null;
+                            item.setQty2(nonNull(secondQty) ? secondQty.multiply(item.getQty()).setScale(4, ROUND_HALF_DOWN) : null);
                             item.setUnit2(getKeyByValue(entity.getShpCustomsSecondDanWei()));
-                            qtyUnits.put(getUnitByValue(entity.getShpCustomsSecondDanWei()), item.getQty2());
+                            Unit secondKey = getUnitByValue(entity.getShpCustomsSecondDanWei());
+                            if (nonNull(secondKey)) {
+                                qtyUnits.put(secondKey, item.getQty2());
+                            }
                             String country = getKeyByCnName(entity.getShpCustomsOriginCountry());
                             item.setCountry(isBlank(country) ? entity.getShpCustomsOriginCountry() : country);
                             BigDecimal taxRate = entity.getShpCustomsTaxRate();
-                            BigDecimal realPaymentPerOne = new BigDecimal(od.getPayment()).setScale(5, BigDecimal.ROUND_HALF_DOWN);
-                            BigDecimal totalFeeBeforeDiscount = new BigDecimal(od.getTotalFee()).setScale(5, BigDecimal.ROUND_HALF_DOWN);
+                            BigDecimal realPayment = new BigDecimal(od.getPayment()).setScale(5, BigDecimal.ROUND_HALF_DOWN);
+                            BigDecimal totalFeeAfterDiscount = new BigDecimal(od.getTotalFee()).setScale(5, BigDecimal.ROUND_HALF_DOWN);
                             String taxTotal = trimToEmpty(od.getTaxTotal());
-                            LOG.info("taxRate:{}, realPaymentPerOne:{}, qty:{}, totalFeeBeforeDiscount:{}, taxTotal:{}", taxRate, realPaymentPerOne, totalFeeBeforeDiscount, taxTotal);
-                            
-                            if(isNotBlank(taxTotal)){
-                                BigDecimal taxTotalRate = new BigDecimal(taxTotal);
-                                if(nonNull(taxTotalRate)){
-                                    BigDecimal originPrice = new BigDecimal(od.getPrice());
-                                    BigDecimal totalPrice = originPrice.multiply(item.getQty());
-                                    BigDecimal discount = (new BigDecimal(od.getPrice()).subtract(realPaymentPerOne)).multiply(item.getQty());
-                                    BigDecimal actualPaid = realPaymentPerOne.multiply(item.getQty());
-                                    BigDecimal tax = actualPaid.multiply(taxTotalRate);
-                                    goodsValues = goodsValues.add(nonNull(totalPrice) ? totalPrice.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
-                                    taxTotals = taxTotals.add(nonNull(tax) ? tax.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
-                                    disCounts = disCounts.add(nonNull(discount) ? discount.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
-                                    actualPaids = actualPaids.add(nonNull(actualPaid) ? actualPaid.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
-                                }
-                            }
-                            else if (nonNull(taxRate) && nonNull(realPaymentPerOne) && nonNull(totalFeeBeforeDiscount)) {
-                                Map<String, BigDecimal> priceMap = priceCaculateFst(totalFeeBeforeDiscount, realPaymentPerOne, item.getQty(), taxRate);
+                            LOG.info("taxRate:{}, odprice:{}, realPayment:{}, totalFeeBeforeDiscount:{}, taxTotal:{}, qty:{}", taxRate, od.getPrice(), realPayment, totalFeeAfterDiscount, taxTotal, item.getQty());
+
+                            if (isNotBlank(taxTotal) && BigDecimal.ZERO.compareTo(new BigDecimal(taxTotal)) < 0) {
+                                BigDecimal originPrice = new BigDecimal(od.getPrice());
+                                BigDecimal totalPrice = originPrice.multiply(item.getQty());
+                                BigDecimal actualPaid = realPayment;
+                                BigDecimal tax = new BigDecimal(taxTotal);
+                                BigDecimal discount = totalPrice.subtract(actualPaid);
+                                LOG.info("originPrice:{}, totalPrice:{}, tax:{}, discount:{}, actualPaid:{}", originPrice, totalPrice, tax, discount, actualPaid);
+                                item.setTotalPrice(nonNull(totalPrice) ? totalPrice.subtract(tax).setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
+                                item.setPrice(nonNull(item.getTotalPrice()) ? item.getTotalPrice().divide(item.getQty()).setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
+                                BigDecimal goodValue = nonNull(item.getTotalPrice()) ? item.getTotalPrice() : BigDecimal.ZERO;
+                                goodsValues = goodsValues.add(nonNull(goodValue) ? goodValue.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
+                                taxTotals = taxTotals.add(nonNull(tax) ? tax.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
+                                disCounts = disCounts.add(nonNull(discount) ? discount.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
+                                actualPaids = actualPaids.add(nonNull(actualPaid) ? actualPaid.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
+                                LOG.info("splitted tax and price, goodsValues:{}, taxTotals:{}, disCounts:{}, actualPaids:{}", goodsValues, taxTotals, disCounts, actualPaids);
+                            } else if (nonNull(taxRate) && nonNull(realPayment) && nonNull(totalFeeAfterDiscount)) {
+                                Map<String, BigDecimal> priceMap = priceCaculateFst(totalFeeAfterDiscount, realPayment, item.getQty(), taxRate);
                                 BigDecimal totalPrice = priceMap.get("totalPrice");
                                 BigDecimal pricePerOne = priceMap.get("perOnePrice");
                                 BigDecimal tax = priceMap.get("tax");
@@ -266,40 +279,55 @@ public class YzOrderCustomSupport extends CustomsSupport<YouzanTradesSoldGetResu
                                 taxTotals = taxTotals.add(nonNull(tax) ? tax.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
                                 disCounts = disCounts.add(nonNull(discount) ? discount.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
                                 actualPaids = actualPaids.add(nonNull(actualPaid) ? actualPaid.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
+                                LOG.info("calculate tax and price:{}, taxTotals:{}, disCounts:{}, actualPaids:{}", goodsValues, taxTotals, disCounts, actualPaids);
                             } else {
                                 LOG.error("taxRate:{} is null", taxRate);
                             }
+                            if(isNotBlank(od.getFreight())){
+                                BigDecimal freight = new BigDecimal(od.getFreight());
+                                freights = freights.add(nonNull(freight) ? freight.setScale(4, ROUND_HALF_DOWN) : BigDecimal.ZERO);
+                            }
                         }
                     }
-                    goodNames.append(item.getItemName()).append(" ");
+                    weights.add(qtyUnits);
+                    goodNames.append(item.getItemName()).append("|");
                     idx++;
                     orderLists.add(item);
                 }
             }
             orderHead.setQty(hqty);
             orderHead.setGoodsValue(goodsValues);
+            orderHead.setFreight(freights);
             orderHead.setDiscount(disCounts);
             orderHead.setTaxTotal(taxTotals);
-            orderHead.setActuralPaid(actualPaids);
+            orderHead.setActuralPaid(actualPaids.add(freights).setScale(4, ROUND_HALF_DOWN));
             orderHead.setNote(trim(goodNames.toString()));
-            orderHead.setWeight(calcWeight(qtyUnits).setScale(4, ROUND_HALF_DOWN));
+            orderHead.setWeight(calcWeight(weights).setScale(4, ROUND_HALF_DOWN));
         }
         return orderLists;
     }
-    
-    private BigDecimal calcWeight(Map<Unit, BigDecimal> qtyUnits){
+
+    private BigDecimal calcWeight(List<Map<Unit, BigDecimal>> qtyUnitsList) {
         BigDecimal weight = BigDecimal.ZERO;
-        if(MapUtils.isNotEmpty(qtyUnits)){
-            for(Entry<Unit, BigDecimal> entry : qtyUnits.entrySet()){
-                Unit key = entry.getKey();
-                BigDecimal value = entry.getValue();
-                if(key == Thfive){
-                    weight = weight.add(value);
-                    break;
-                }else if(key == Thsix){
-                    value = value.divide(new BigDecimal(1000), 4, RoundingMode.DOWN);
-                    weight = weight.add(value);
-                    break;
+        if(isNotEmpty(qtyUnitsList)){
+            for(Map<Unit, BigDecimal> qtyUnits : qtyUnitsList){
+                if (MapUtils.isNotEmpty(qtyUnits)) {
+                    for (Entry<Unit, BigDecimal> entry : qtyUnits.entrySet()) {
+                        Unit key = entry.getKey();
+                        BigDecimal value = entry.getValue();
+                        if (nonNull(value)) {
+                            if (key == Thfive) {
+                                weight = weight.add(value);
+                                break;
+                            } else if (key == Thsix) {
+                                value = value.divide(new BigDecimal(1000), 4, RoundingMode.DOWN);
+                                weight = weight.add(value);
+                                break;
+                            }
+                        }else{
+                            LOG.error("it's weired, key:{}, value:{}", key, value);
+                        }
+                    }
                 }
             }
         }

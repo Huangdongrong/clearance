@@ -41,4 +41,4 @@
 
 #### 联系作者
 
-![微信/QQ联系方式](http://dengbao-file.oss-cn-beijing.aliyuncs.com/saaas.png "微信/QQ联系方式")
+![微信/QQ联系方式](http://dengbao-file.oss-cn-beijing.aliyuncs.com/qingma/author.png "QQ/微信联系方式")

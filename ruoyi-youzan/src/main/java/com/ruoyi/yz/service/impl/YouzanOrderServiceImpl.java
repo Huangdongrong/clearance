@@ -11,6 +11,8 @@ import static com.ruoyi.common.utils.DateUtil.format;
 import static com.ruoyi.common.utils.DateUtils.getStartTimeOfDay;
 import static com.ruoyi.common.utils.DateUtils.parseDate;
 import static com.ruoyi.common.utils.spring.SpringUtils.getBean;
+import static com.ruoyi.yz.cnst.Const.CREATE_BY_PROGRAM;
+import com.ruoyi.yz.config.YundaKjProperties;
 import com.ruoyi.yz.domain.CustomsPlat;
 import com.ruoyi.yz.domain.YouzanConfig;
 import com.ruoyi.yz.domain.YouzanKdt;
@@ -20,19 +22,16 @@ import com.ruoyi.yz.mapper.YouzanConfigMapper;
 import com.ruoyi.yz.mapper.YouzanKdtMapper;
 import com.ruoyi.yz.mapper.YouzanOrderMapper;
 import com.ruoyi.yz.service.YouzanOrderService;
-import static com.ruoyi.yz.cnst.Const.CREATE_BY_PROGRAM;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_DISCARDED;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_INIT;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_WAITING;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_REJECTED;
 import static com.ruoyi.yz.enums.OrderStatus.getNameByKey;
-import static com.ruoyi.yz.enums.WuliuComp.YUNDA;
 import java.util.List;
 import java.util.ArrayList;
 import static java.util.Collections.singleton;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.collections4.CollectionUtils.size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,28 +50,52 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
 import org.apache.commons.lang3.ArrayUtils;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.commons.lang3.StringUtils.equalsIgnoreCase;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import com.ruoyi.yz.mapper.YouzanOrderBkMapper;
 import static org.apache.commons.collections4.CollectionUtils.collect;
 import com.ruoyi.yz.domain.ClearanceStatus;
+import com.ruoyi.yz.domain.WuliuKjPlat;
+import com.ruoyi.yz.domain.excel.XlsOrder;
+import com.ruoyi.yz.domain.excel.XlsOrderHelper;
+import com.ruoyi.yz.domain.excel.XlsOrderItem;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_APPLYING;
 import static com.ruoyi.yz.enums.OrderStatus.isDiscarded;
 import com.ruoyi.yz.enums.Port;
+import static com.ruoyi.yz.enums.WuliuComp.YUNDA;
 import com.ruoyi.yz.service.thread.ClearDetailsToCustomsThread;
 import com.ruoyi.yz.service.thread.PlaceOrderToWmsThread;
 import com.ruoyi.yz.service.thread.PullRangeOrdersFromYzThread;
+import com.ruoyi.yz.service.thread.PullSpecOrderFromYzThread;
+import static com.ruoyi.yz.utils.YundaUtil.assembleYdCreateReq;
+import static com.ruoyi.yz.utils.YundaUtil.sendReq;
+import com.ruoyi.yz.wuliu.ydkj.create.YdCreateRequest;
+import com.ruoyi.yz.wuliu.ydkj.create.YdCreateResponse;
+import com.ruoyi.yz.wuliu.ydkj.create.YdCreateResponses;
 import java.util.Arrays;
 import java.util.Map;
 import static java.util.Objects.nonNull;
+import static java.util.Objects.isNull;
+import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import org.springframework.context.annotation.Scope;
+import org.springframework.web.client.RestTemplate;
+import static com.ruoyi.yz.utils.YouZanUtil.getOrderTime;
+import java.util.Collections;
+import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
+import static org.apache.commons.collections4.CollectionUtils.removeAll;
+import org.apache.commons.collections4.Equator;
+import org.apache.commons.collections4.IteratorUtils;
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 
 /**
  *
  * @author wmao
  */
 @Service("youzanOrderService")
+@Scope("prototype")
 @Transactional
 public class YouzanOrderServiceImpl implements YouzanOrderService {
 
@@ -85,9 +108,6 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
     private YouzanConfigMapper youzanConfigMapper;
 
     @Autowired
-    private WuliuKjPlatMapper wuliuKjPlatMapper;
-
-    @Autowired
     private YouzanKdtMapper youzanKdtMapper;
 
     @Autowired
@@ -98,6 +118,60 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
 
     @Autowired
     private YouzanOrderBkMapper youzanOrderBkMapper;
+
+    @Autowired
+    protected YundaKjProperties yundaKjProperties;
+
+    @Autowired
+    protected RestTemplate restTemplate;
+
+    @Autowired
+    protected WuliuKjPlatMapper wuliuKjPlatMapper;
+
+    private YdCreateResponses sendRequest(YdCreateRequest request) {
+        YdCreateResponses resp = null;
+        if (nonNull(request)) {
+            WuliuKjPlat plat = wuliuKjPlatMapper.getOne(YUNDA.name());
+            if (nonNull(plat)) {
+                resp = sendReq(request, restTemplate, plat, yundaKjProperties);
+            }
+        }
+        return resp;
+    }
+
+    private YouzanOrder updateWuliuOfOrder(YouzanOrder order, YouzanKdt kdt) {
+        YouzanOrder youzanOrder = null;
+        if (nonNull(order) && nonNull(kdt)) {
+            YdCreateRequest createRequest = assembleYdCreateReq(order, kdt.getSender());
+            if (nonNull(createRequest)) {
+                YdCreateResponses response = sendRequest(createRequest);
+                if (nonNull(response)) {
+                    List<YdCreateResponse> resps = response.getResponse();
+                    if (CollectionUtils.isNotEmpty(resps)) {
+                        YdCreateResponse resp = resps.get(0);
+                        if (nonNull(resp) && isNotBlank(resp.getMailNo())) {
+                            order.setWayBillEnt(YUNDA.getValue());
+                            order.setWayBillNo(resp.getMailNo());
+                            order.setStatus(STATUS_APPLYING.name());
+                            order.setStatusMessage(STATUS_APPLYING.getValue());
+                            order.setUpdateBy(CREATE_BY_PROGRAM);
+                            order.setUpdateTime(Calendar.getInstance().getTime());
+                            youzanOrderMapper.update(order);
+                        } else if (nonNull(resp)) {
+                            LOG.error("fst element of list is empty:{}", resp);
+                        }
+                    } else {
+                        LOG.error("response list is empty:{}", response);
+                    }
+                } else {
+                    LOG.error("create response is empty:{}", createRequest);
+                }
+            } else {
+                LOG.error("failed to assemble yunda create request:{}", createRequest);
+            }
+        }
+        return youzanOrder;
+    }
 
     @Override
     @Transactional
@@ -163,10 +237,11 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
                     StringBuilder sb = new StringBuilder();
                     if (isNotBlank(statusMessage)) {
                         sb.append(statusMessage);
-                    }
-                    ClearanceStatus cs = yo.getSyncDetailsStatus();
-                    if (nonNull(cs)) {
-                        sb.append("[").append(cs.getMessage()).append("]");
+                    } else {
+                        ClearanceStatus cs = yo.getSyncDetailsStatus();
+                        if (nonNull(cs)) {
+                            sb.append("[").append(cs.getMessage()).append("]");
+                        }
                     }
                     yo.setSearchValue(sb.toString());
                 }
@@ -177,32 +252,150 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
         return retList;
     }
 
+    private List<YouzanOrder> needUpdateRetringOfOrder(List<YouzanOrder> orders, YouzanKdt kdt) {
+        List<YouzanOrder> needUpdateList = new ArrayList<>();
+        if (isNotEmpty(orders)) {
+            orders.forEach((order) -> {
+                if (nonNull(order)
+                        && isBlank(order.getWayBillNo())
+                        && (equalsIgnoreCase(order.getStatus(), STATUS_REJECTED.name())
+                        || equalsIgnoreCase(order.getStatus(), STATUS_DISCARDED.name()))) {
+                    order.reset();
+                    needUpdateList.add(order);
+                } else {
+                    LOG.error("no need to wait clearing info for order:{}", order);
+                }
+            });
+        }
+        return needUpdateList;
+    }
+
+    private List<YouzanOrder> needUpdateApplyingOfOrder(List<YouzanOrder> orders, YouzanKdt kdt) {
+        List<YouzanOrder> needUpdateList = new ArrayList<>();
+        if (isNotEmpty(orders)) {
+            Date currentTime = Calendar.getInstance().getTime();
+            orders.forEach((order) -> {
+                if (nonNull(order)
+                        && isBlank(order.getWayBillNo())
+                        && equalsIgnoreCase(order.getStatus(), STATUS_INIT.name())) {
+                    YdCreateRequest createRequest = assembleYdCreateReq(order, kdt.getSender());
+                    if (nonNull(createRequest)) {
+                        YdCreateResponses response = sendRequest(createRequest);
+                        if (nonNull(response)) {
+                            List<YdCreateResponse> resps = response.getResponse();
+                            if (CollectionUtils.isNotEmpty(resps)) {
+                                YdCreateResponse resp = resps.get(0);
+                                if (nonNull(resp) && isNotBlank(resp.getMailNo())) {
+                                    order.setWayBillEnt(YUNDA.getValue());
+                                    order.setWayBillNo(resp.getMailNo());
+                                    order.setStatus(STATUS_APPLYING.name());
+                                    order.setStatusMessage(STATUS_APPLYING.getValue());
+                                    order.setUpdateBy(CREATE_BY_PROGRAM);
+                                    order.setUpdateTime(currentTime);
+                                    needUpdateList.add(order);
+                                } else if (nonNull(resp)) {
+                                    LOG.error("fst element of list is empty:{}", resp);
+                                }
+                            } else {
+                                LOG.error("response list is empty:{}", response);
+                            }
+                        } else {
+                            LOG.error("create response is empty:{}", createRequest);
+                        }
+                    } else {
+                        LOG.error("failed to assemble yunda create request:{}", createRequest);
+                    }
+                } else {
+                    LOG.error("no need to wait clearing info for order:{}", order);
+                }
+            });
+        }
+        return needUpdateList;
+    }
+
+    private List<YouzanOrder> needUpdateWaitingOfOrder(List<YouzanOrder> orders) {
+        List<YouzanOrder> needUpdateList = new ArrayList<>();
+        if (isNotEmpty(orders)) {
+            Date currentTime = Calendar.getInstance().getTime();
+            orders.forEach((order) -> {
+                if (nonNull(order)
+                        && isBlank(order.getWayBillNo())
+                        && equalsIgnoreCase(order.getStatus(), STATUS_INIT.name())) {
+                    order.setStatus(STATUS_WAITING.name());
+                    order.setStatusMessage(STATUS_WAITING.getValue());
+                    order.setUpdateBy(CREATE_BY_PROGRAM);
+                    order.setUpdateTime(currentTime);
+                    needUpdateList.add(order);
+                } else {
+                    LOG.error("no need to wait wuliu info for order:{}", order);
+                }
+            });
+        }
+        return needUpdateList;
+    }
+
+    @Override
+    @Transactional
+    public int exeRetry(List<YouzanOrder> orders, String kdtId) throws BusinessException {
+        int pullLen = 0;
+        if (nonNull(orders)) {
+            YouzanKdt kdt = youzanKdtMapper.getOne(kdtId);
+            CustomsPlat plat = customPlatMapper.getOneByDistrict(CD.name());
+            if (nonNull(kdt) && nonNull(plat)) {
+                final List<Future<Integer>> futures = new ArrayList<>(size(orders));
+                orders.forEach((od) -> {
+                    if (nonNull(od)) {
+                        PullSpecOrderFromYzThread pullThread = getBean("pullSpecOrderFromYzThread");
+                        pullThread.init(od, kdt, plat);
+                        futures.add(executor.submit(pullThread));
+                    }
+                });
+                pullLen += exeFutureList(futures);
+                LOG.info("pulled {} orders", pullLen);
+            } else {
+                LOG.error("kdt {} is null or plat {} is null", kdt, plat);
+            }
+        }
+        return pullLen;
+    }
+
+    @Override
+    @Transactional
+    public List<YouzanOrder> exeRetry(String[] args, String kdtId) throws BusinessException {
+        List<YouzanOrder> needUpdateList = null;
+        if (ArrayUtils.isNotEmpty(args) && isNotBlank(kdtId)) {
+            YouzanKdt kdt = youzanKdtMapper.getOne(kdtId);
+            if (nonNull(kdt)) {
+                List<YouzanOrder> orders = youzanOrderMapper.getByIds(args, kdt.getAuthorityId());
+                if (isNotEmpty(orders)) {
+                    needUpdateList = needUpdateRetringOfOrder(orders, kdt);
+                    LOG.info("clearance orders length:{}, need reseting orders length:{}", size(orders), size(needUpdateList));
+                    if (isNotEmpty(needUpdateList)) {
+                        int retLen = batchClearStatus(needUpdateList);
+                        LOG.info("cleared {} orders", retLen);
+                    } else {
+                        LOG.warn("no need to update youzan order");
+                    }
+                } else {
+                    LOG.error("no valid orders were found!");
+                }
+            } else {
+                LOG.error("kdt is null");
+            }
+        }
+        return needUpdateList;
+    }
+
     @Override
     @Transactional
     public int execute(String[] args, String kdtId) throws BusinessException {
         int retLen = 0;
         if (ArrayUtils.isNotEmpty(args) && isNotBlank(kdtId)) {
-            YouzanConfig config = youzanConfigMapper.getOne();
-            CustomsPlat plat = customPlatMapper.getOneByDistrict(CD.name());
             YouzanKdt kdt = youzanKdtMapper.getOne(kdtId);
-            if (nonNull(config) && nonNull(plat) && nonNull(kdt)) {
+            if (nonNull(kdt)) {
                 List<YouzanOrder> orders = youzanOrderMapper.getByIds(args, kdt.getAuthorityId());
                 if (isNotEmpty(orders)) {
-                    Date currentTime = Calendar.getInstance().getTime();
-                    List<YouzanOrder> needUpdateList = new ArrayList<>();
-                    orders.forEach((order) -> {
-                        if (nonNull(order)
-                                && isBlank(order.getWayBillNo())
-                                && equalsIgnoreCase(order.getStatus(), STATUS_INIT.name())) {
-                            order.setStatus(STATUS_WAITING.name());
-                            order.setStatusMessage(STATUS_WAITING.getValue());
-                            order.setUpdateBy(CREATE_BY_PROGRAM);
-                            order.setUpdateTime(currentTime);
-                            needUpdateList.add(order);
-                        } else {
-                            LOG.error("no need to apply clearance for order:{}", order);
-                        }
-                    });
+                    List<YouzanOrder> needUpdateList = needUpdateApplyingOfOrder(orders, kdt);
                     LOG.info("clear orders length:{}, need update orders length:{}", size(orders), size(needUpdateList));
                     if (nonNull(needUpdateList)) {
                         retLen += batchUpdate(needUpdateList);
@@ -218,7 +411,7 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
                     LOG.error("no valid orders were found!");
                 }
             } else {
-                LOG.error("config, plat or kdt is null");
+                LOG.error("kdt is null");
             }
         } else {
             LOG.error("failed to clear orders");
@@ -296,13 +489,13 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
             if (nonNull(kdt)) {
                 List<YouzanOrder> orders = youzanOrderMapper.getByIds(ids, kdt.getAuthorityId());
                 if (isNotEmpty(orders)) {
-                    final List<YouzanOrder> needUpdate = new ArrayList<>();
+                    final List<YouzanOrder> needUpdateList = new ArrayList<>();
                     orders.forEach((order) -> {
                         if (nonNull(order)
                                 && equalsIgnoreCase(order.getKdtId(), kdt.getAuthorityId())) {
                             if (isDiscarded(order.getStatus())) {
                                 order.reset();
-                                needUpdate.add(order);
+                                needUpdateList.add(order);
                             } else {
                                 LOG.warn("order is waiting to clear to customs, pls check it!");
                             }
@@ -310,7 +503,7 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
                             LOG.error("faied to recovery order:{} of kdt:{}", order, kdt);
                         }
                     });
-                    retLen = batchUpdate(needUpdate);
+                    retLen = batchClearStatus(needUpdateList);
                 }
             }
         }
@@ -345,33 +538,103 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
     }
 
     @Override
+    @Transactional
     public int update(YouzanOrder order) {
-        int ret = -1;
+        int ret = 0;
         if (nonNull(order)) {
             ret = youzanOrderMapper.update(order);
         }
         return ret;
     }
 
-    @Override
-    public int batchInsert(List<YouzanOrder> orders) {
-        int ret = -1;
+    private List<YouzanOrder> sort(List<YouzanOrder> orders) {
         if (isNotEmpty(orders)) {
-            youzanOrderMapper.batchInsert(orders);
+            Collections.sort(orders, (YouzanOrder yo1, YouzanOrder yo2) -> {
+                Date ot1 = getOrderTime(yo1);
+                Date ot2 = getOrderTime(yo2);
+                if (ot1.compareTo(ot2) > 0) {
+                    return 1;
+                } else {
+                    return -1;
+                }
+            });
+        }
+        return orders;
+    }
+
+    @Override
+    @Transactional
+    public int batchInsert(List<YouzanOrder> orders) {
+        int ret = 0;
+        if (isNotEmpty(orders)) {
+            List<YouzanOrder> removedOrders = sort(orders);
+            LOG.info("before get rid of:{}", size(removedOrders));
+
+            List<String> orderNos = (List<String>) collect(removedOrders, (Object obj) -> {
+                YouzanOrder yo = (YouzanOrder) obj;
+                return (nonNull(yo) ? yo.getOrderNo() : null);
+            });
+            if (isNotEmpty(orderNos)) {
+                orderNos.removeAll(Collections.singleton(null));
+            }
+
+            List<YouzanOrder> yos = youzanOrderMapper.existedOrders(orderNos, getOrderTime(IteratorUtils.get(removedOrders.iterator(), 0)), Calendar.getInstance().getTime());
+            if (isNotEmpty(yos)) {
+                yos.removeAll(Collections.singleton(null));
+                removedOrders = (List<YouzanOrder>) removeAll(removedOrders, yos, new Equator<YouzanOrder>() {
+                    @Override
+                    public boolean equate(YouzanOrder obj1, YouzanOrder obj2) {
+                        if (isNull(obj1) && isNull(obj2)) {
+                            return true;
+                        }
+                        if (isNull(obj1) || isNull(obj2)) {
+                            return false;
+                        }
+                        if (obj1.getClass() != obj2.getClass()) {
+                            return false;
+                        }
+                        return new EqualsBuilder().append(obj1.getTid(), obj2.getTid())
+                                .append(obj1.getOrderNo(), obj2.getOrderNo())
+                                .append(getOrderTime(obj1), getOrderTime(obj2)).isEquals();
+                    }
+
+                    @Override
+                    public int hash(YouzanOrder obj) {
+                        return new HashCodeBuilder(11, 21).append(obj.getTid())
+                                .append(obj.getOrderNo())
+                                .append(getOrderTime(obj))
+                                .toHashCode();
+                    }
+                });
+            }
+            LOG.info("{} orders will be inserted into database", size(removedOrders));
+            if (isNotEmpty(removedOrders)) {
+                ret = youzanOrderMapper.batchInsert(removedOrders);
+            }
         }
         return ret;
     }
 
     @Override
+    @Transactional
     public int batchUpdate(List<YouzanOrder> orders) {
-        int ret = -1;
+        int ret = 0;
         if (isNotEmpty(orders)) {
             ret = youzanOrderMapper.batchUpdate(orders);
         }
         return ret;
     }
 
+    private int batchClearStatus(List<YouzanOrder> orders) {
+        int ret = 0;
+        if (isNotEmpty(orders)) {
+            ret = youzanOrderMapper.batchClearStatus(orders);
+        }
+        return ret;
+    }
+
     @Override
+    @Transactional
     public int discard(String[] ids, String kdtId) throws BusinessException {
         int retLen = 0;
         if (ArrayUtils.isNotEmpty(ids) && isNotBlank(kdtId)) {
@@ -407,6 +670,7 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
     }
 
     @Override
+    @Transactional
     public int pullOrders(YouzanOrder order, YouzanKdt kdt) {
         int ret = 0;
         if (nonNull(order)) {
@@ -440,6 +704,7 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
     }
 
     @Override
+    @Transactional
     public int autoExecute(YouzanKdt kdt, Date lastExecuteDate) throws BusinessException {
         int ret = 0;
         if (nonNull(kdt)) {
@@ -474,6 +739,7 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
     }
 
     @Override
+    @Transactional
     public int autoDetailsExecute(YouzanKdt kdt, Date lastExecuteDate) throws BusinessException {
         int ret = 0;
         if (nonNull(kdt)) {
@@ -507,6 +773,7 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
     }
 
     @Override
+    @Transactional
     public int autoComplete(YouzanKdt kdt, Date lastCompleteDate) throws BusinessException {
         int ret = 0;
         if (nonNull(kdt)) {
@@ -538,6 +805,7 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
     }
 
     @Override
+    @Transactional
     public int autoQueryPayClearanceResult(YouzanKdt kdt, Date lastQueryDate) throws BusinessException {
         int retLen = 0;
         if (nonNull(kdt)) {
@@ -560,7 +828,7 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
                     LOG.error("failed to get result of thread! {}", ex.getMessage());
                 }
             } else {
-                LOG.warn("orders of kdt is empty:{}", size(orders));
+                LOG.warn("orders of kdt {} is empty:{}", kdt.getAuthorityName(), size(orders));
             }
         } else {
             LOG.error("kdt is empty:{}", kdt);
@@ -573,6 +841,87 @@ public class YouzanOrderServiceImpl implements YouzanOrderService {
         List<Map<String, Object>> orders = null;
         if (isNotEmpty(kdtIds) && nonNull(startTime) && nonNull(endTime)) {
             orders = youzanOrderMapper.getOrdersOfKdts(kdtIds, status, startTime, endTime);
+        }
+        return orders;
+    }
+
+    @Override
+    @Transactional
+    public int wuliuEdit(final YouzanOrder order) throws BusinessException {
+        int ret = 0;
+        if (nonNull(order)) {
+            String wuliuNo = order.getWayBillNo();
+            YouzanOrder oldOrder = youzanOrderMapper.getOne(order.getId());
+            if (nonNull(oldOrder)) {
+                final String oldWuliuNo = oldOrder.getWayBillNo();
+                if (isBlank(oldWuliuNo) || !equalsIgnoreCase(oldWuliuNo, wuliuNo)) {
+                    LOG.info("old wuliu no:{}, update wuliu no:{}", oldWuliuNo, wuliuNo);
+                    oldOrder.setWayBillEnt(YUNDA.getValue());
+                    oldOrder.setWayBillNo(wuliuNo);
+                    oldOrder.setStatus(STATUS_APPLYING.name());
+                    oldOrder.setStatusMessage(STATUS_APPLYING.getValue());
+                    oldOrder.setUpdateBy(CREATE_BY_PROGRAM);
+                    oldOrder.setUpdateTime(Calendar.getInstance().getTime());
+                    ret = youzanOrderMapper.update(oldOrder);
+                } else {
+                    LOG.warn("don't need to update wuliu info, already existed");
+                }
+            } else {
+                LOG.error("failed to get youzan order history record:{}", oldOrder);
+            }
+        } else {
+            LOG.error("id is empty or wuliu no is empty");
+        }
+        return ret;
+    }
+
+    @Override
+    public List<Map<String, Object>> export(String ids, String kdtId) {
+        List<Map<String, Object>> rets = new ArrayList<>();
+        if (isNotBlank(ids)) {
+            String[] idArray = ids.split(",");
+            if (ArrayUtils.isNotEmpty(idArray)) {
+                YouzanKdt kdt = youzanKdtMapper.getOne(kdtId);
+                String authId = nonNull(kdt) ? kdt.getAuthorityId() : null;
+                List<YouzanOrder> orders = youzanOrderMapper.getByIds(idArray, authId);
+                LOG.error("idArray:{}, authId:{}, orders:{}", idArray, authId, size(orders));
+                if (isNotEmpty(orders)) {
+                    Map<String, Object> odMap = new HashMap<>();
+                    List<XlsOrderItem> xlsItems = new ArrayList<>();
+                    List<XlsOrder> xlsOrders = new ArrayList<>();
+                    orders.forEach((order) -> {
+                        xlsOrders.add(XlsOrderHelper.transform(order));
+                    });
+                    odMap.put("orders", xlsOrders);
+                    rets.add(odMap);
+                    Map<String, Object> itMap = new HashMap<>();
+                    if (isNotEmpty(xlsOrders)) {
+                        xlsOrders.forEach((xlsOrder) -> {
+                            xlsItems.addAll(xlsOrder.getItems());
+                        });
+                        itMap.put("items", xlsItems);
+                    }
+                    rets.add(itMap);
+                }
+            }
+        }
+        return rets;
+    }
+
+    @Override
+    public List<YouzanOrder> getInitOrdersOfKdt(Map<String, Object> kdt) {
+        List<YouzanOrder> orders = null;
+        if (MapUtils.isNotEmpty(kdt)) {
+            orders = youzanOrderMapper.getInitOrdersOfKdt(kdt);
+        }
+        return orders;
+    }
+
+    @Override
+    public List<YouzanOrder> existed(List<String> trans, Date startTime, Date endTime) {
+        List<YouzanOrder> orders = null;
+        if (isNotEmpty(trans)) {
+            orders = youzanOrderMapper.existed(trans, startTime, endTime);
         }
         return orders;
     }

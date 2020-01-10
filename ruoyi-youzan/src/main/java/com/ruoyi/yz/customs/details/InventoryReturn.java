@@ -8,12 +8,14 @@
 
 package com.ruoyi.yz.customs.details;
 
+import com.ruoyi.common.adapter.CDataAdapter;
 import com.ruoyi.yz.base.BaseCif;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 
 /**
@@ -79,6 +81,7 @@ public class InventoryReturn  extends BaseCif{
     @XmlElement(required = true)
     protected String returnTime;
     @XmlElement(required = true)
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     protected String returnInfo;
 
     /**

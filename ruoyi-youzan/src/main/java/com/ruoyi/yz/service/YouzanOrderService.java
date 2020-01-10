@@ -27,6 +27,10 @@ public interface YouzanOrderService{
     
     List<YouzanOrder> getList(YouzanOrder order);
     
+    List<YouzanOrder> exeRetry(String[] ids, String kdtId) throws BusinessException;
+    
+    int exeRetry(List<YouzanOrder> orders, String kdtId) throws BusinessException;
+    
     int execute(String[] ids, String kdtId) throws BusinessException;
     
     int autoQueryPayClearanceResult(YouzanKdt kdt, Date lastQueryDate) throws BusinessException;
@@ -43,6 +47,8 @@ public interface YouzanOrderService{
     
     int recovery(String[] ids, String kdtId) throws BusinessException;
     
+    int wuliuEdit(final YouzanOrder order)  throws BusinessException;
+    
     List<YouzanOrder> wmsPullOrders(Date lastPulledDate) throws BusinessException;
     
     YouzanOrder getOne(String orderId);
@@ -58,4 +64,10 @@ public interface YouzanOrderService{
     int batchUpdate(List<YouzanOrder> orders);
     
     List<Map<String, Object>> getOrdersOfKdts(List<String> kdtIds, String status, Date startTime, Date endTime);
+    
+    List<Map<String, Object>> export(String ids, String kdtId);
+    
+    List<YouzanOrder> getInitOrdersOfKdt(Map<String, Object> kdt);    
+    
+    List<YouzanOrder> existed(List<String> trans, Date startTime, Date endTime);
 }

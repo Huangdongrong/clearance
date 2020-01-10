@@ -411,7 +411,7 @@ public class YzCallbackController extends BaseController {
     /**
      * 定时拉取订单
      */
-    @Scheduled(fixedDelay = 60 * 60 * 1000, initialDelay = 1000)
+    @Scheduled(fixedDelay = 5 * 60 * 1000, initialDelay = 1000)
     public void pullOrders() {
         youzanOrderService.pullOrders();
     }
@@ -419,7 +419,7 @@ public class YzCallbackController extends BaseController {
     /**
      * 定时自动发送清关信息到wms平台
      */
-    @Scheduled(fixedDelay = 60 * 60 * 1000, initialDelay = 1000)
+    @Scheduled(fixedDelay = 6 * 60 * 1000, initialDelay = 1000)
     public void placeWmsOrders() {
         youzanOrderService.placeWmsOrders();
     }

@@ -13,6 +13,7 @@ import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
  */
 public enum CustomsDetailsError {
     SYSTEM_ERROR(-1, "系统异常处理"),
+    PORT_APPLYING(2, "电子口岸申报中"),
     FAILED_SENT(4, "发送海关失败"),
     REJECTED(100, "海关退单"),
     EXPORT_CLOSE(899, "结关"),
@@ -24,7 +25,10 @@ public enum CustomsDetailsError {
     RETURN_GOODS(900, "退货"),
     IDENTITY_CHECKING(1001, "身份验证中"),
     IDENTITY_INVALID(1002, "身份验证不通过"),
+    DRAFT_SAVED(1004, "平台已暂存"),
+    PORT_APPLICATION_SENDING(1006, "正在发往电子口岸"),
     WITHDRAW(399, "海关审结"),
+    MANUAL_CHECK(300, "人工审核"),
     PASS_SUCCESS(800, "放行");
 
     private int key;
@@ -77,7 +81,11 @@ public enum CustomsDetailsError {
         boolean isChecking = false;
         CustomsDetailsError[] codes = CustomsDetailsError.values();
         if (isNotEmpty(codes)) {
-            isChecking = (IDENTITY_CHECKING.getKey() == key);
+            isChecking = (key == IDENTITY_CHECKING.getKey()
+                    || key == PORT_APPLICATION_SENDING.getKey()
+                    || key == PORT_APPLYING.getKey()
+                    || key == DRAFT_SAVED.getKey()
+                    || key == MANUAL_CHECK.getKey());
         }
         return isChecking;
     }

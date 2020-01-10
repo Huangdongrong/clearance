@@ -51,6 +51,7 @@ import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -59,6 +60,7 @@ import org.springframework.transaction.annotation.Transactional;
  * @author wmao
  */
 @Service("youzanKdtService")
+@Scope("prototype")
 @Transactional
 public class YouzanKdtServiceImpl implements YouzanKdtService {
 
@@ -211,21 +213,25 @@ public class YouzanKdtServiceImpl implements YouzanKdtService {
             if (isNotEmpty(kdts)) {
                 kdts.forEach((kdt) -> {
                     if (nonNull(kdt)) {
-                        Date expireTime = kdt.getExpires();
+                        Date expireTime = addDays(kdt.getExpires(), -1);
                         //判断当前时间是否到了刷新token时间
-                        if (currentTime.after(addDays(expireTime, -1))) {
+                        LOG.info("kdt:{}, expireTime is:{}", kdt.getAuthorityName(), expireTime);
+                        if (currentTime.after(expireTime)) {
                             OAuthToken token = null;
                             if (isNotBlank(kdt.getAccessToken()) && isNotBlank(kdt.getRefreshToken())) {
                                 //判断是否刷新token
+                                LOG.info("refresh kdt:{}, token:{}", kdt.getAuthorityName(), kdt.getRefreshToken());
                                 token = refresh(config, kdt.getRefreshToken());
                             } else {
                                 //判断是否获取token
+                                LOG.info("get new kdt:{}, token:{}", kdt.getAuthorityName(), kdt.getCode());
                                 token = call(config, kdt.getCode());
                             }
                             kdt.setStatus(alreadyReceivedAuthMessage(kdt.getAuthorityId()));
+                            LOG.info("begin to update kdt:{}, token:{}", kdt.getAuthorityName(), token);
                             update(fill(kdt, token));
                         } else {
-                            LOG.info("time is far from expiration{}, no needs to update token", expireTime);
+                            LOG.info("time is far from expiration{}, no needs to update token, kdt:{}", expireTime, kdt.getAuthorityName());
                         }
                     } else {
                         LOG.warn("kdt is empty {}, it's weired!", kdt);

@@ -11,8 +11,8 @@
     <packaging>jar</packaging>
     
     <properties>
-        <sdk-core.version>1.0.5-RELEASE</sdk-core.version>
-        <sdk-gen.version>1.0.5.201907301700-RELEASE</sdk-gen.version>
+        <sdk-core.version>1.0.6-RELEASE</sdk-core.version>
+        <sdk-gen.version>1.0.6.201912301051-RELEASE</sdk-gen.version>
         <ezmorph.version>1.0.6</ezmorph.version>
         <json-lib.version>2.4</json-lib.version>
     </properties>

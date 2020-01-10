@@ -6,16 +6,20 @@
 package com.ruoyi.yz.enums;
 
 import static com.ruoyi.common.utils.StringUtils.isNumeric;
+import java.io.Serializable;
 import static org.apache.commons.lang3.ArrayUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.equalsIgnoreCase;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.trimToNull;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
 
 /**
  *
  * @author wmao
  */
-public enum Unit {
+public enum Unit implements Serializable{
     First("001", "台"),
     Second("002", "座"),
     Third("003", "辆"),
@@ -176,6 +180,7 @@ public enum Unit {
 
     public static String getKeyByValue(String value) {
         String key = null;
+        value = trimToNull(value);
         if (isNotBlank(value) && !isNumeric(value)) {
             Unit[] units = Unit.values();
             if (isNotEmpty(units)) {
@@ -205,5 +210,9 @@ public enum Unit {
         }
         return unit;
     }
-
+    
+    @Override
+    public String toString(){
+        return ToStringBuilder.reflectionToString(this, ToStringStyle.MULTI_LINE_STYLE);
+    }
 }

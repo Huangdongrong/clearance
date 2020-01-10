@@ -90,7 +90,10 @@ public enum OrderStatus {
         if (isNotEmpty(values)) {
             for (OrderStatus os : values) {
                 if (nonNull(os) && equalsIgnoreCase(name, os.name())) {
-                    locked = (os == STATUS_WAITING) || (os == STATUS_APPLYING) || (os == STATUS_COMPLETED);
+                    locked = (os == STATUS_WAITING) 
+                            || (os == STATUS_APPLYING) 
+                            || (os == STATUS_SUCCESS) 
+                            || (os == STATUS_COMPLETED);
                     break;
                 }
             }
@@ -153,4 +156,33 @@ public enum OrderStatus {
         }
         return init;
     }
+    
+    public static String[] keys() {
+        String[] keys = null;
+        OrderStatus[] statusAry = OrderStatus.values();
+        if (isNotEmpty(statusAry)) {
+            keys = new String[statusAry.length];
+            int idx = 0;
+            for (OrderStatus status : statusAry) {
+                keys[idx] = status.getKey();
+                idx++;
+            }
+        }
+        return keys;
+    }
+
+    public static String[] vals() {
+        String[] values = null;
+        OrderStatus[] statusAry = OrderStatus.values();
+        if (isNotEmpty(statusAry)) {
+            values = new String[statusAry.length];
+            int idx = 0;
+            for (OrderStatus status : statusAry) {
+                values[idx] = status.getValue();
+                idx++;
+            }
+        }
+        return values;
+    }
+
 }

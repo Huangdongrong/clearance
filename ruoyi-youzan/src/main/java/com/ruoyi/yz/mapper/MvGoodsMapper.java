@@ -26,7 +26,7 @@ public interface MvGoodsMapper {
     int howManyGoods();
 
     @TargetDS(value = SLAVE)
-    @Cacheable(cacheNames = REDIS_WMS_CACHE_NAME, key = "'shp_bian_ma_list_'+#cusCode")
+    //@Cacheable(cacheNames = REDIS_WMS_CACHE_NAME, key = "'shp_bian_ma_list_'+#cusCode")
     List<String> allShpBianMa(@Param("cusCode") String cusCode);
 
     @TargetDS(value = SLAVE)

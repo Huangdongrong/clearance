@@ -20,7 +20,7 @@ import com.ruoyi.yz.domain.WuliuKjPlat;
 import com.ruoyi.yz.domain.YouzanOrder;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_REJECTED;
 import static com.ruoyi.yz.enums.SyncRespSuccess.CUSTOMS_SUCC;
-import com.ruoyi.yz.mapper.YouzanOrderMapper;
+import com.ruoyi.yz.service.YouzanOrderService;
 import com.ruoyi.yz.support.YzDetailsCustomSupport;
 import static com.ruoyi.yz.utils.CustomsUtil.sendReq;
 import static java.lang.Integer.parseInt;
@@ -47,8 +47,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ClearDetailsToCustomsThread implements Callable<Integer> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ClearDetailsToCustomsThread.class);
+    
     @Autowired
-    private YouzanOrderMapper youzanOrderMapper;
+    private YouzanOrderService youzanOrderService;
 
     private CustomsPlat customsPlat;
 
@@ -130,7 +131,7 @@ public class ClearDetailsToCustomsThread implements Callable<Integer> {
                                     order.setStatus(STATUS_REJECTED.name());
                                     order.setStatusMessage(STATUS_REJECTED.getValue() + "[" + syncDetailsStatus.getMessage() + "]");
                                 }
-                                youzanOrderMapper.update(order);
+                                youzanOrderService.update(order);
                             } else {
                                 LOG.error("failed to get order req from order body;{}", order);
                             }

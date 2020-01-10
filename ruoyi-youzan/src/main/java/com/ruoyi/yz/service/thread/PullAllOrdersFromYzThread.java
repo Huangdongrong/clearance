@@ -57,7 +57,7 @@ public class PullAllOrdersFromYzThread extends PullOrdersFromYzThread {
         int ret = -1;
         if (nonNull(kdt)) {
             kdt.setLastPulledDate(currentTime);
-            ret = youzanKdtMapper.update(kdt);
+            ret = youzanKdtService.update(kdt);
         }
         return ret;
     }

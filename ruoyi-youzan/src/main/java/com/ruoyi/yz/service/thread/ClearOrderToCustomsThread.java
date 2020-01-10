@@ -15,7 +15,6 @@ import com.ruoyi.yz.domain.ClearanceStatus;
 import com.ruoyi.yz.domain.CustomsPlat;
 import com.ruoyi.yz.domain.YouzanKdt;
 import com.ruoyi.yz.domain.YouzanOrder;
-import com.ruoyi.yz.mapper.YouzanOrderMapper;
 import com.ruoyi.yz.service.StoKjOrderService;
 import com.ruoyi.yz.service.YundaKjOrderService;
 import static com.ruoyi.yz.utils.CustomsUtil.sendReq;
@@ -54,6 +53,7 @@ import org.apache.ibatis.reflection.ArrayUtil;
 import static com.ruoyi.yz.cnst.Const.RUOYI_INTERNAL_ERROR;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_REJECTED;
 import static com.ruoyi.yz.enums.OrderStatus.isReadyApply;
+import com.ruoyi.yz.service.YouzanOrderService;
 import com.youzan.cloud.open.sdk.gen.v1_0_1.model.YouzanPayCustomsDeclarationReportpaymentReportResult.YouzanPayCustomsDeclarationReportpaymentReportResultData;
 
 /**
@@ -68,7 +68,7 @@ public class ClearOrderToCustomsThread implements Callable<Integer> {
     private static final Logger LOG = LoggerFactory.getLogger(ClearOrderToCustomsThread.class);
     
     @Autowired
-    private YouzanOrderMapper youzanOrderMapper;
+    private YouzanOrderService youzanOrderService;
 
     private YouzanKdt youzanKdt;
 
@@ -113,7 +113,7 @@ public class ClearOrderToCustomsThread implements Callable<Integer> {
                     order.setStatus(STATUS_REJECTED.name());
                     order.setStatusMessage(STATUS_REJECTED.getValue() + "[" + syncPayStatus.getMessage() + "]");
                 }
-                youzanOrderMapper.update(order);
+                youzanOrderService.update(order);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 LOG.error("failed to send pay info to customs:{} {}", ArrayUtils.toString(ex.getStackTrace()), order.getTid());
@@ -160,7 +160,7 @@ public class ClearOrderToCustomsThread implements Callable<Integer> {
                     order.setStatus(STATUS_REJECTED.name());
                     order.setStatusMessage(STATUS_REJECTED.getValue() + "[" + syncOrderStatus.getMessage() + "]");
                 }
-                youzanOrderMapper.update(order);
+                youzanOrderService.update(order);
             } catch (Exception ex) {
                 ex.printStackTrace();
                 LOG.error("failed to send order info to customs:{}", order.getTid());
@@ -203,7 +203,7 @@ public class ClearOrderToCustomsThread implements Callable<Integer> {
                     order.setStatus(STATUS_REJECTED.name());
                     order.setStatusMessage(STATUS_REJECTED.getValue() + "[" + syncWuliuStatus.getMessage() + "]");
                 }
-                youzanOrderMapper.update(order);
+                youzanOrderService.update(order);
             } catch (BeansException ex) {
                 LOG.error("failed to send sto wuliu info to customs:{}", order);
                 throw new BusinessException("failed to send sto wuliu info to customs " + order.getTid());
@@ -261,7 +261,7 @@ public class ClearOrderToCustomsThread implements Callable<Integer> {
                             order.setStatus(STATUS_REJECTED.name());
                             order.setStatusMessage(STATUS_REJECTED.getValue() + "[" + syncWuliuStatus.getMessage() + "]");
                         }
-                        youzanOrderMapper.update(order);
+                        youzanOrderService.update(order);
                     } else {
                         LOG.error("can't find right YundaKjOrderService :{}", order.getTid());
                         throw new BusinessException("can't find right YundaKjOrderService  " + order.getTid());
@@ -321,7 +321,7 @@ public class ClearOrderToCustomsThread implements Callable<Integer> {
                     if (nonNull(order)
                             && nonNull(youzanKdt)
                             && equalsIgnoreCase(order.getKdtId(), youzanKdt.getAuthorityId())
-                            && nonNull(youzanOrderMapper)
+                            && nonNull(youzanOrderService)
                             && isReadyApply(order.getStatus())) {
                         //发送物流单信息到海关清关
                         ClearanceStatus wuliuClearanceStatus = order.isAlreadySyncWuliu() ? order.getSyncWuliuStatus() : sendWuliuToCustoms(order);

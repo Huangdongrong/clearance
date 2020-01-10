@@ -27,6 +27,10 @@ import static com.ruoyi.yz.enums.Port.CD;
 import com.ruoyi.yz.support.TimestampToDateMorpher;
 import static com.ruoyi.common.utils.UuidUtil.get32UUID;
 import static com.ruoyi.yz.cnst.Const.CREATE_BY_PROGRAM;
+import com.ruoyi.yz.customs.Message;
+import com.ruoyi.yz.customs.order.CEB311Message;
+import com.ruoyi.yz.customs.order.Order;
+import com.ruoyi.yz.customs.order.OrderHead;
 import com.ruoyi.yz.enums.WuliuComp;
 import com.youzan.cloud.open.sdk.gen.v1_0_1.api.YouzanPayCustomsDeclarationReportpaymentQuery;
 import com.youzan.cloud.open.sdk.gen.v1_0_1.api.YouzanPayCustomsDeclarationReportpaymentReport;
@@ -201,7 +205,8 @@ public class YouZanUtil {
             params.setTid(order.getTid());
             reportReq.setAPIParams(params);
             try {
-                logYzSdkObj("reportPay", params);
+                logYzSdkObj("reportPay:{}", params);
+                logYzSdkObj("token:{}", token);
                 result = YZ_CLIENT.invoke(reportReq, token, YouzanPayCustomsDeclarationReportpaymentReportResult.class);
             } catch (SDKException ex) {
                 LOG.error("failed to report pay info for order:" + ex.getMessage());
@@ -355,16 +360,16 @@ public class YouZanUtil {
      * 按照折扣后价格计算税金；折扣后总价-税金后计算商品价格
      *
      * @param totalFeeBeforeDiscount
-     * @param feePerOneAfterDiscount
+     * @param realPaymentTotal
      * @param qty
      * @param taxRate
      * @return
      */
-    public static Map<String, BigDecimal> priceCaculateFst(final BigDecimal totalFeeBeforeDiscount, final BigDecimal feePerOneAfterDiscount, final BigDecimal qty, final BigDecimal taxRate) {
+    public static Map<String, BigDecimal> priceCaculateFst(final BigDecimal totalFeeBeforeDiscount, final BigDecimal realPaymentTotal, final BigDecimal qty, final BigDecimal taxRate) {
         Map<String, BigDecimal> priceMap = new HashMap<>();
-        if (nonNull(totalFeeBeforeDiscount) && nonNull(feePerOneAfterDiscount) && nonNull(qty) && nonNull(taxRate)) {
+        if (nonNull(totalFeeBeforeDiscount) && nonNull(realPaymentTotal) && nonNull(qty) && nonNull(taxRate)) {
             //折扣后含税商品总价=折扣后含税商品单价*商品数量
-            BigDecimal totalFeeAfterDiscount = feePerOneAfterDiscount.multiply(qty);
+            BigDecimal totalFeeAfterDiscount = realPaymentTotal;
             priceMap.put("actualPaid", totalFeeAfterDiscount);
             //折扣=折扣前商品总价-折扣后商品总价
             priceMap.put("discount", totalFeeBeforeDiscount.subtract(totalFeeAfterDiscount));
@@ -388,16 +393,16 @@ public class YouZanUtil {
      * 按照折扣前价格计算税金；折扣前总价-税金后计算商品价格
      *
      * @param totalFeeBeforeDiscount
-     * @param feePerOneAfterDiscount
+     * @param realPaymentTotal
      * @param qty
      * @param taxRate
      * @return
      */
-    public static Map<String, BigDecimal> priceCaculateScd(final BigDecimal totalFeeBeforeDiscount, final BigDecimal feePerOneAfterDiscount, final BigDecimal qty, final BigDecimal taxRate) {
+    public static Map<String, BigDecimal> priceCaculateScd(final BigDecimal totalFeeBeforeDiscount, final BigDecimal realPaymentTotal, final BigDecimal qty, final BigDecimal taxRate) {
         Map<String, BigDecimal> priceMap = new HashMap<>();
-        if (nonNull(totalFeeBeforeDiscount) && nonNull(feePerOneAfterDiscount) && nonNull(qty) && nonNull(taxRate)) {
+        if (nonNull(totalFeeBeforeDiscount) && nonNull(realPaymentTotal) && nonNull(qty) && nonNull(taxRate)) {
             //折扣后含税总价=折扣后含税商品单价*商品数量
-            BigDecimal totalFeeAfterDiscount = feePerOneAfterDiscount.multiply(qty);
+            BigDecimal totalFeeAfterDiscount = realPaymentTotal;
             priceMap.put("actualPaid", totalFeeAfterDiscount);
             //折扣=折扣前商品总价-折扣后商品总价
             priceMap.put("discount", totalFeeBeforeDiscount.subtract(totalFeeAfterDiscount));
@@ -428,5 +433,68 @@ public class YouZanUtil {
             LOG.error("can't get order no list in request");
         }
         return isSeperated;
+    }
+
+    /**
+     * 获取订单下单时间
+     *
+     * @param order
+     * @return
+     */
+    public static Date getOrderTime(YouzanOrder order) {
+        Date orderTime = null;
+        if (nonNull(order)) {
+            Message body = order.getBody();
+            if (nonNull(body)) {
+                CEB311Message message = (CEB311Message) body;
+                if (nonNull(message)) {
+                    Order od = message.getOrder();
+                    if (nonNull(od)) {
+                        OrderHead odHead = od.getOrderHead();
+                        if (nonNull(odHead)) {
+                            orderTime = odHead.getOrderTime();
+                        }
+                    }
+                }
+            }
+        }
+        return nonNull(orderTime) ? orderTime : Calendar.getInstance().getTime();
+    }
+
+    /**
+     * 更新订单中的corpNo
+     *
+     * @param order
+     * @param corpNo
+     * @return
+     */
+    public static YouzanOrder updateCorpNo(YouzanOrder order, String corpNo) {
+        if (nonNull(order) && isNotBlank(corpNo)) {
+            order.setCopNo(corpNo);
+            Message body = order.getBody();
+            if (nonNull(body)) {
+                CEB311Message message = (CEB311Message) body;
+                if (nonNull(message)) {
+                    Order od = message.getOrder();
+                    if (nonNull(od)) {
+                        OrderHead odHead = od.getOrderHead();
+                        if (nonNull(odHead)) {
+                            odHead.setCopNo(corpNo);
+                        } else {
+                            LOG.error("order head of order is null:{}", odHead);
+                        }
+                    } else {
+                        LOG.error("order is null:{}", od);
+                    }
+                } else {
+                    LOG.error("message is null:{}", message);
+                }
+            } else {
+                LOG.error("body of order is null:{}", body);
+            }
+        } else {
+            LOG.error(" order is null:{} or corpNo is null:{}", order, corpNo);
+        }
+        return order;
     }
 }

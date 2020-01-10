@@ -40,6 +40,7 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import static com.ruoyi.yz.enums.Unit.getKeyByValue;
 import static java.math.BigDecimal.ROUND_HALF_DOWN;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  *
@@ -146,12 +147,14 @@ public class YzDetailsCustomSupport extends CustomsSupport<Message> {
                         il.setNote(ol.getNote());
                         il.setPrice(ol.getPrice());
                         il.setQty(ol.getQty());
-                        il.setQty1(ol.getQty1());
-                        il.setQty2(ol.getQty2());
+                        il.setQty1(nonNull(ol.getQty1()) ? ol.getQty1() : null);
+                        il.setQty2(nonNull(ol.getQty2()) ? ol.getQty2() : null);
                         il.setTotalPrice(ol.getTotalPrice());
                         il.setUnit(getKeyByValue(ol.getUnit()));
-                        il.setUnit1(getKeyByValue(ol.getUnit1()));
-                        il.setUnit2(getKeyByValue(ol.getUnit2()));
+                        String unitFstKey = getKeyByValue(ol.getUnit1());
+                        il.setUnit1(isNotBlank(unitFstKey) ? unitFstKey : null);
+                        String unitScdKey = getKeyByValue(ol.getUnit2());
+                        il.setUnit2(isNotBlank(unitScdKey) ? unitScdKey : null);
                         inventoryList.add(il);
                     });
                 }

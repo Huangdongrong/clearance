@@ -28,7 +28,7 @@ import org.apache.http.conn.socket.PlainConnectionSocketFactory;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustStrategy;
-import org.apache.http.impl.client.HttpClientBuilder;
+import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -125,12 +125,11 @@ public class RestClientConfig {
                     .setConnectTimeout(connectTimeout)
                     .setConnectionRequestTimeout(connectionRequestTimeout)
                     .build();
-            httpClient = HttpClientBuilder.create()
+            httpClient = HttpClients.custom()
                     .setSSLSocketFactory(socketFactory)
                     .setDefaultRequestConfig(requestConfig)
                     .setConnectionManager(connectionManager)
-                    .setConnectionManagerShared(true)
-                    .build();
+                    .setConnectionManagerShared(true).build();
         } catch (NoSuchAlgorithmException | KeyStoreException | KeyManagementException ex) {
             LOG.error("failed to create http client:{}", Arrays.toString(ex.getStackTrace()));
         }

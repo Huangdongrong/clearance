@@ -6,6 +6,7 @@
 //
 package com.ruoyi.yz.customs.details;
 
+import com.ruoyi.common.adapter.CDataAdapter;
 import com.ruoyi.yz.base.BaseCif;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -14,6 +15,7 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import static org.eclipse.persistence.oxm.annotations.XmlMarshalNullRepresentation.EMPTY_NODE;
 import org.eclipse.persistence.oxm.annotations.XmlNullPolicy;
 
@@ -91,13 +93,16 @@ public class InventoryList extends BaseCif {
     @XmlElement(required = true, namespace = "http://www.chinaport.gov.cn/ceb")
     protected String itemNo;
     @XmlElement(required = true, namespace = "http://www.chinaport.gov.cn/ceb")
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     protected String itemName;
     @XmlElement(required = true, namespace = "http://www.chinaport.gov.cn/ceb")
     @XmlNullPolicy(emptyNodeRepresentsNull = true, nullRepresentationForXml = EMPTY_NODE)
     protected String gcode;
     @XmlElement(required = true, namespace = "http://www.chinaport.gov.cn/ceb")
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     protected String gname;
     @XmlElement(required = true, namespace = "http://www.chinaport.gov.cn/ceb")
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     protected String gmodel;
     @XmlElement(required = true, namespace = "http://www.chinaport.gov.cn/ceb")
     @XmlNullPolicy(emptyNodeRepresentsNull = true, nullRepresentationForXml = EMPTY_NODE)
@@ -125,6 +130,7 @@ public class InventoryList extends BaseCif {
     @XmlElement(required = true, namespace = "http://www.chinaport.gov.cn/ceb")
     protected BigDecimal totalPrice;
     @XmlElement(required = true, namespace = "http://www.chinaport.gov.cn/ceb")
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     protected String note;
 
     /**

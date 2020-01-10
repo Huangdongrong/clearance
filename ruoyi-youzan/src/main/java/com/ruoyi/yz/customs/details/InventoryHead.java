@@ -8,6 +8,7 @@
 
 package com.ruoyi.yz.customs.details;
 
+import com.ruoyi.common.adapter.CDataAdapter;
 import com.ruoyi.yz.base.BaseCif;
 import java.math.BigDecimal;
 import java.math.BigInteger;
@@ -16,6 +17,7 @@ import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 import static org.eclipse.persistence.oxm.annotations.XmlMarshalNullRepresentation.EMPTY_NODE;
 import org.eclipse.persistence.oxm.annotations.XmlNullPolicy;
 
@@ -236,6 +238,7 @@ public class InventoryHead  extends BaseCif{
     protected BigDecimal netWeight;
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
     @XmlNullPolicy(emptyNodeRepresentsNull = true, nullRepresentationForXml = EMPTY_NODE)
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     protected String note;
     @XmlElement(required = true, namespace="http://www.chinaport.gov.cn/ceb")
     @XmlNullPolicy(emptyNodeRepresentsNull = true, nullRepresentationForXml = EMPTY_NODE)

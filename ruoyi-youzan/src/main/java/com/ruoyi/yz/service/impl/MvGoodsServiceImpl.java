@@ -15,12 +15,14 @@ import com.ruoyi.yz.mapper.MvGoodsMapper;
 import java.util.ArrayList;
 import java.util.List;
 import static java.util.Objects.nonNull;
+import org.springframework.context.annotation.Scope;
 
 /**
  *
  * @author wmao
  */
 @Service("mvGoodsService")
+@Scope("prototype")
 public class MvGoodsServiceImpl implements MvGoodsService {
 
     @Autowired

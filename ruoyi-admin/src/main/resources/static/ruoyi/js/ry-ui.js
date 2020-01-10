@@ -6,7 +6,7 @@
     $.extend({
         _treeTable: {},
         _tree: {},
-        object:{
+        object: {
             serialize: function (form) {
                 var o = {};
                 $.each(form.serializeArray(), function (index) {
@@ -23,7 +23,7 @@
         table: {
             _option: {},
             // 初始化表格参数
-            init: function (options) {
+            init: function (opts) {
                 var defaults = {
                     id: "bootstrap-table",
                     type: 0, // 0 代表bootstrapTable 1代表bootstrapTreeTable
@@ -32,7 +32,7 @@
                     sortName: "",
                     sortOrder: "asc",
                     pagination: true,
-                    pageSize: 10,
+                    pageSize: 20,
                     pageList: [10, 25, 50],
                     toolbar: "toolbar",
                     striped: false,
@@ -52,9 +52,9 @@
                     rightFixedColumns: false,
                     rightFixedNumber: 0,
                     queryParams: $.table.queryParams,
-                    rowStyle: {},
+                    rowStyle: {}
                 };
-                var options = $.extend(defaults, options);
+                var options = $.extend(defaults, opts);
                 $.table._option = options;
                 $.table.initEvent();
                 $('#' + options.id).bootstrapTable({
@@ -102,7 +102,90 @@
                     responseHandler: $.table.responseHandler, // 在加载服务器发送来的数据之前处理函数
                     onLoadSuccess: $.table.onLoadSuccess, // 当所有数据被加载时触发处理函数
                     exportOptions: options.exportOptions, // 前端导出忽略列索引
-                    detailFormatter: options.detailFormatter, // 在行下面展示其他数据列表
+                    detailFormatter: options.detailFormatter // 在行下面展示其他数据列表
+                });
+            },
+            // 刷新表格
+            refresh: function(opts){
+                var defaults = {
+                    id: "bootstrap-table",
+                    type: 0, // 0 代表bootstrapTable 1代表bootstrapTreeTable
+                    height: undefined,
+                    sidePagination: "server",
+                    sortName: "",
+                    sortOrder: "asc",
+                    pagination: true,
+                    pageSize: 20,
+                    pageList: [10, 25, 50],
+                    toolbar: "toolbar",
+                    striped: false,
+                    escape: false,
+                    showFooter: false,
+                    search: false,
+                    showSearch: true,
+                    showPageGo: false,
+                    showRefresh: true,
+                    showColumns: true,
+                    showToggle: true,
+                    showExport: false,
+                    clickToSelect: false,
+                    rememberSelected: false,
+                    fixedColumns: false,
+                    fixedNumber: 0,
+                    rightFixedColumns: false,
+                    rightFixedNumber: 0,
+                    queryParams: $.table.queryParams,
+                    rowStyle: {}
+                };
+                var options = $.extend(defaults, opts);
+                $.table._option = options;
+                $.table.initEvent();
+                $('#' + options.id).bootstrapTable('refresh', {
+                    url: options.url, // 请求后台的URL（*）
+                    contentType: "application/x-www-form-urlencoded", // 编码类型
+                    method: 'post', // 请求方式（*）
+                    cache: false, // 是否使用缓存
+                    height: options.height, // 表格的高度
+                    striped: options.striped, // 是否显示行间隔色
+                    sortable: true, // 是否启用排序
+                    sortStable: true, // 设置为 true 将获得稳定的排序
+                    sortName: options.sortName, // 排序列名称
+                    sortOrder: options.sortOrder, // 排序方式  asc 或者 desc
+                    pagination: options.pagination, // 是否显示分页（*）
+                    pageNumber: 1, // 初始化加载第一页，默认第一页
+                    pageSize: options.pageSize, // 每页的记录行数（*） 
+                    pageList: options.pageList, // 可供选择的每页的行数（*）
+                    escape: options.escape, // 转义HTML字符串
+                    showFooter: options.showFooter, // 是否显示表尾
+                    iconSize: 'outline', // 图标大小：undefined默认的按钮尺寸 xs超小按钮sm小按钮lg大按钮
+                    toolbar: '#' + options.toolbar, // 指定工作栏
+                    sidePagination: options.sidePagination, // server启用服务端分页client客户端分页
+                    search: options.search, // 是否显示搜索框功能
+                    searchText: options.searchText, // 搜索框初始显示的内容，默认为空
+                    showSearch: options.showSearch, // 是否显示检索信息
+                    showPageGo: options.showPageGo, // 是否显示跳转页
+                    showRefresh: options.showRefresh, // 是否显示刷新按钮
+                    showColumns: options.showColumns, // 是否显示隐藏某列下拉框
+                    showToggle: options.showToggle, // 是否显示详细视图和列表视图的切换按钮
+                    showExport: options.showExport, // 是否支持导出文件
+                    clickToSelect: options.clickToSelect, // 是否启用点击选中行
+                    detailView: options.detailView, // 是否启用显示细节视图
+                    onClickRow: options.onClickRow, // 点击某行触发的事件
+                    onDblClickRow: options.onDblClickRow, // 双击某行触发的事件
+                    onClickCell: options.onClickCell, // 单击某格触发的事件
+                    onDblClickCell: options.onDblClickCell, // 双击某格触发的事件
+                    rememberSelected: options.rememberSelected, // 启用翻页记住前面的选择
+                    fixedColumns: options.fixedColumns, // 是否启用冻结列（左侧）
+                    fixedNumber: options.fixedNumber, // 列冻结的个数（左侧）
+                    rightFixedColumns: options.rightFixedColumns, // 是否启用冻结列（右侧）
+                    rightFixedNumber: options.rightFixedNumber, // 列冻结的个数（右侧）
+                    queryParams: options.queryParams, // 传递参数（*）
+                    rowStyle: options.rowStyle, // 通过自定义函数设置行样式
+                    columns: options.columns, // 显示列信息（*）
+                    responseHandler: $.table.responseHandler, // 在加载服务器发送来的数据之前处理函数
+                    onLoadSuccess: $.table.onLoadSuccess, // 当所有数据被加载时触发处理函数
+                    exportOptions: options.exportOptions, // 前端导出忽略列索引
+                    detailFormatter: options.detailFormatter // 在行下面展示其他数据列表
                 });
             },
             // 查询条件
@@ -131,7 +214,7 @@
                             var column = $.common.isEmpty($.table._option.uniqueId) ? $.table._option.columns[1].field : $.table._option.uniqueId;
                             $.each(res.rows, function (i, row) {
                                 row.state = $.inArray(row[column], selectionIds) !== -1;
-                            })
+                            });
                         }
                         return {rows: res.rows, total: res.total};
                     }
@@ -250,7 +333,7 @@
                     search.orderByColumn = params.sort;
                     search.isAsc = params.order;
                     return search;
-                }
+                };
                 $("#" + $.table._option.id).bootstrapTable('refresh', params);
             },
             // 导出数据
@@ -262,7 +345,7 @@
                         if (result.code == web_status.SUCCESS) {
                             window.location.href = ctx + "common/download?fileName=" + encodeURI(result.msg) + "&delete=" + true;
                         } else if (result.code == web_status.WARNING) {
-                            $.modal.alertWarning(result.msg)
+                            $.modal.alertWarning(result.msg);
                         } else {
                             $.modal.alertError(result.msg);
                         }
@@ -276,7 +359,7 @@
                     if (result.code == web_status.SUCCESS) {
                         window.location.href = ctx + "common/download?fileName=" + encodeURI(result.msg) + "&delete=" + true;
                     } else if (result.code == web_status.WARNING) {
-                        $.modal.alertWarning(result.msg)
+                        $.modal.alertWarning(result.msg);
                     } else {
                         $.modal.alertError(result.msg);
                     }
@@ -392,6 +475,26 @@
             // 隐藏表格指定列
             hideColumn: function (column) {
                 $("#" + $.table._option.id).bootstrapTable('hideColumn', column);
+            },
+            // 表格编辑列
+            onDblClickCell: function (field, value, row, $element) {
+                var upIndex = $element[0].parentElement.rowIndex - 1;
+                if (field == options.editFiled) {
+                    $element[0].innerHTML = "<input id='inputCell' type='text' name='inputCell' style ='width: 40px' value='" + value + "'>";
+                    $("#inputCell").focus();
+                    $("#inputCell").blur(function () {
+                        var newValue = $("#inputCell").val();
+                        row[field] = newValue;
+                        $(this).remove();
+                        $('#bootstrap-table').bootstrapTable('updateCell', {
+                            index: upIndex,
+                            field: field,
+                            value: newValue
+                        });
+                        $.operate.rowedit(row);
+                        // updateExbEnt();
+                    });
+                }
             }
         },
         // 表格树封装处理
@@ -492,9 +595,9 @@
                             //是复选框，并且是数组
                             if (Object.prototype.toString().apply(ival) == '[object Array]') {
                                 for (var i = 0; i < ival.length; i++) {
-                                    if ($(this).val() == ival[i]){
+                                    if ($(this).val() == ival[i]) {
                                         $(this).attr("checked", "checked");
-                                    }else if($(this).val() == ival){
+                                    } else if ($(this).val() == ival) {
                                         $(this).attr("checked", "checked");
                                     }
                                 }
@@ -764,6 +867,18 @@
                     }
                 });
             },
+            // 重启清关
+            exeretry: function (id) {
+                $.modal.confirm("确定重新发起该条" + $.table._option.modalName + "数据清关吗？", function () {
+                    var url = $.common.isEmpty(id) ? $.table._option.exeRetryUrl : $.table._option.exeRetryUrl.replace("{id}", id);
+                    if ($.table._option.type == table_type.bootstrapTreeTable) {
+                        $.operate.get(url);
+                    } else {
+                        var data = {"ids": id};
+                        $.operate.submit(url, "post", "json", data);
+                    }
+                });
+            },
             // 批量清关
             executeAll: function () {
                 var rows = $.common.isEmpty($.table._option.uniqueId) ? $.table.selectFirstColumns() : $.table.selectColumns($.table._option.uniqueId);
@@ -776,10 +891,40 @@
                     var data = {"ids": rows.join()};
                     $.operate.submit(url, "post", "json", data);
                 });
+            },
+            // 导出
+            exptExcel: function () {
+                var rows = $.common.isEmpty($.table._option.uniqueId) ? $.table.selectFirstColumns() : $.table.selectColumns($.table._option.uniqueId);
+                if (rows.length == 0) {
+                    $.modal.alertWarning("请至少选择一条记录");
+                    return;
+                } else {
+                    var url = $.table._option.exportUrl;
+                    var data = {"ids": rows.join()};
+                    $.operate.excel(url, "post", data);
+                }
             }
         },
         // 操作封装处理
         operate: {
+            // 下载excel
+            excel: function (url, type, data) {
+                $.fileDownload(url,{
+                    httpMethod: type,
+                    data: data,
+                    prepareCallback:function(url){
+                        $.modal.loading("正在处理中，请稍后...");
+                    },
+                    successCallback:function(url){
+                        $.modal.closeLoading();
+                    },
+                    failCallback: function (html, url) {
+                        $.modal.alertWarning("服务器错误，请联系管理员！");
+                        $.modal.enable();
+                        $.modal.closeLoading();
+                    }
+                });
+            },
             // 提交数据
             submit: function (url, type, dataType, data, callback) {
                 var config = {
@@ -836,7 +981,7 @@
                     skin: 'layui-layer-gray',
                     btn: ['关闭'],
                     yes: function (index, layero) {
-                        layer.close(index);
+                        layero.close(index);
                     }
                 };
                 $.modal.openOptions(options);
@@ -1139,11 +1284,25 @@
                         $.modal.closeTab();
                     }
                 } else if (result.code == web_status.WARNING) {
-                    $.modal.alertWarning(result.msg)
+                    $.modal.alertWarning(result.msg);
                 } else {
                     $.modal.alertError(result.msg);
                 }
                 $.modal.closeLoading();
+            },
+            rowedit: function (row) {
+                $.modal.loading("正在处理中，请稍后...");
+                var url = $.table._option.roweditUrl;
+                var config = {
+                    url: url,
+                    type: "post",
+                    dataType: "json",
+                    data: row,
+                    success: function (result) {
+                        $.operate.ajaxSuccess(result);
+                    }
+                };
+                $.ajax(config);
             }
         },
         // 校验封装处理
@@ -1176,7 +1335,7 @@
                     },
                     check: {
                         enable: false, // 置 zTree 的节点上是否显示 checkbox / radio
-                        nocheckInherit: true, // 设置子节点是否自动继承
+                        nocheckInherit: true // 设置子节点是否自动继承
                     },
                     data: {
                         key: {
@@ -1185,7 +1344,7 @@
                         simpleData: {
                             enable: true           // true / false 分别表示 使用 / 不使用 简单数据模式
                         }
-                    },
+                    }
                 };
                 var options = $.extend(defaults, options);
                 $.tree._option = options;
@@ -1252,7 +1411,7 @@
             },
             // 隐藏所有节点
             hideAllNode: function (nodes) {
-                var tree = $.fn.zTree.getZTreeObj("tree");
+                //var tree = $.fn.zTree.getZTreeObj("tree");
                 var nodes = $._tree.transformToArray(nodes);
                 for (var i = nodes.length - 1; i >= 0; i--) {
                     $._tree.hideNode(nodes[i]);
@@ -1283,7 +1442,7 @@
                 for (var i = 0, l = nodeList.length; i < l; i++) {
                     var treeNode = nodeList[i];
                     $.tree.showChildren(treeNode);
-                    $.tree.showParent(treeNode)
+                    $.tree.showParent(treeNode);
                 }
             },
             // 获取当前被勾选集合
@@ -1406,12 +1565,12 @@
             // 判断字符串是否是以start开头
             startWith: function (value, start) {
                 var reg = new RegExp("^" + start);
-                return reg.test(value)
+                return reg.test(value);
             },
             // 判断字符串是否是以end结尾
             endWith: function (value, end) {
                 var reg = new RegExp(end + "$");
-                return reg.test(value)
+                return reg.test(value);
             },
             // 数组去重
             uniqueFn: function (array) {
@@ -1439,6 +1598,13 @@
                     json[field.name] = field.value;
                 });
                 return json;
+            },
+            toDecimal: function (str) {
+                var f = parseFloat(str);
+                if (isNaN(f)) {
+                    return;
+                }
+                return Math.round(str * 100) / 100;
             }
         }
     });

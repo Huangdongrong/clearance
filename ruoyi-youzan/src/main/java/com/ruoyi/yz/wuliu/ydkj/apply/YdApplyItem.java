@@ -8,14 +8,15 @@
 
 package com.ruoyi.yz.wuliu.ydkj.apply;
 
+import com.ruoyi.common.adapter.CDataAdapter;
 import com.ruoyi.yz.base.BaseCif;
 import java.math.BigDecimal;
-import java.math.BigInteger;
 import javax.xml.bind.annotation.XmlAccessType;
 import javax.xml.bind.annotation.XmlAccessorType;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlRootElement;
 import javax.xml.bind.annotation.XmlType;
+import javax.xml.bind.annotation.adapters.XmlJavaTypeAdapter;
 
 
 /**
@@ -57,6 +58,7 @@ public class YdApplyItem extends BaseCif {
     @XmlElement(name = "hs_code", required = true)
     protected String hsCode;
     @XmlElement(name = "product_name", required = true)
+    @XmlJavaTypeAdapter(CDataAdapter.class)
     protected String productName;
     @XmlElement(name = "product_qutity", required = true)
     private BigDecimal productQutity;

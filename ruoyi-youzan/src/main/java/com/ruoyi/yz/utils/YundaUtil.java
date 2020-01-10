@@ -6,11 +6,12 @@
 package com.ruoyi.yz.utils;
 
 import static com.ruoyi.common.utils.StringUtils.nullToEmpty;
-import static com.ruoyi.common.utils.xml.XmlUtil.convertToXml;
 import static com.ruoyi.common.utils.xml.XmlUtil.convertXmlStrToObject;
 import static com.ruoyi.common.utils.security.Base64Util.safeUrlBase64Encode;
 import static com.ruoyi.common.utils.security.Md5Utils.hashYunda;
+import static com.ruoyi.common.utils.xml.XmlUtil.unformat;
 import static com.ruoyi.yz.cnst.Const.PACKAGE_WEIGHT;
+import static com.ruoyi.yz.cnst.Const.YUNDA_GOOD_NAME_MAX_LENGTH;
 import com.ruoyi.yz.config.YundaKjProperties;
 import com.ruoyi.yz.customs.order.CEB311Message;
 import com.ruoyi.yz.customs.order.Order;
@@ -53,7 +54,6 @@ import com.ruoyi.yz.wuliu.ydkj.update.YdUpdateResponses;
 import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
 import static java.math.BigDecimal.ROUND_HALF_DOWN;
-import java.math.RoundingMode;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,15 +61,21 @@ import static java.util.Objects.nonNull;
 import static org.apache.commons.collections4.CollectionUtils.isNotEmpty;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.commons.lang3.StringUtils.length;
 import static org.apache.commons.lang3.StringUtils.lowerCase;
 import static org.apache.commons.lang3.StringUtils.trim;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
+import static org.springframework.http.HttpMethod.POST;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
+import static com.ruoyi.common.utils.xml.XmlUtil.unescapeConvertToXml;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 
 /**
  *
@@ -127,7 +133,11 @@ public final class YundaUtil {
                         List<YdApplyItem> itemList = new ArrayList<>();
                         for (OrderList ol : ols) {
                             YdApplyItem itm = new YdApplyItem();
-                            goodName += ol.getItemName() + ";";
+                            int goodNameLen = length(goodName);
+                            int itemNameLen = length(ol.getItemName());
+                            if ((goodNameLen + itemNameLen) < YUNDA_GOOD_NAME_MAX_LENGTH) {
+                                goodName += ol.getItemName() + "|";
+                            }
                             itm.setProductCode(ol.getItemNo());
                             itm.setProductName(ol.getItemName());
                             itm.setProductQutity(ol.getQty());
@@ -190,7 +200,7 @@ public final class YundaUtil {
             CEB311Message message = (CEB311Message) order.getBody();
             if (nonNull(message)) {
                 YdCreateHawb hawb = new YdCreateHawb();
-                hawb.setHawbno(order.getTid());
+                hawb.setHawbno(order.getOrderNo());
                 hawb.setPtype(GSS.name());
                 hawb.setPiece(1);
                 hawb.setWeight(new BigDecimal(0.6).setScale(2, ROUND_HALF_DOWN));
@@ -313,26 +323,44 @@ public final class YundaUtil {
         YdApplyResponses resp = null;
         if (nonNull(request) && nonNull(template) && nonNull(plat) && nonNull(props)) {
             try {
-                String data = trim(convertToXml(request));
-                String base64Data = safeUrlBase64Encode(data.getBytes("UTF-8"));
+                String data = trim(unescapeConvertToXml(request));
+                String base64Data = safeUrlBase64Encode(unformat(data).getBytes("UTF-8"));
                 String validation = genValidation(plat, base64Data);
                 String url = genUrl(plat.getUrl(), props);
-                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
-                        .queryParam("accountNo", plat.getCopCode())
-                        .queryParam("passWord", plat.getDxpId())
-                        .queryParam("version", VER)
-                        .queryParam("buzType", "logic")
-                        .queryParam("dataType", DATA_STYLE)
-                        .queryParam("data", base64Data)
-                        .queryParam("validation", validation);
+//                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
+//                        .queryParam("accountNo", plat.getCopCode())
+//                        .queryParam("passWord", plat.getDxpId())
+//                        .queryParam("version", VER)
+//                        .queryParam("buzType", "logic")
+//                        .queryParam("dataType", DATA_STYLE)
+//                        .queryParam("data", base64Data)
+//                        .queryParam("validation", validation);
+                
+                MultiValueMap<String, Object> params = new LinkedMultiValueMap<>();
+                params.add("accountNo", plat.getCopCode());
+                params.add("passWord", plat.getDxpId());
+                params.add("version", VER);
+                params.add("buzType", "logic");
+                params.add("dataType", DATA_STYLE);
+                params.add("data", base64Data);
+                params.add("validation", validation);
                 HttpHeaders headers = generateKjHeader();
-                headers.setContentType(new MediaType("text", DATA_STYLE, Charset.forName("UTF-8")));
-                String response = template.postForObject(builder.build().encode().toUri(), new HttpEntity<>(headers), String.class);
+                //headers.setContentType(new MediaType("text", DATA_STYLE, Charset.forName("UTF-8")));
+                headers.setContentType(new MediaType("application", "x-www-form-urlencoded", Charset.forName("UTF-8")));
+                HttpEntity entity = new HttpEntity<>(params, headers);
+                //ResponseEntity<String> response = template.exchange(url, POST, new HttpEntity<>(headers), String.class);
+                ResponseEntity<String> response = template.exchange(url, POST, entity, String.class);
                 LOG.info("url:{}, data:{}, validation:{}, response:{}", url, data, validation, response);
-                if (isNotBlank(response)) {
-                    resp = convertXmlStrToObject(YdApplyResponses.class, response);
+                if (nonNull(response)) {
+                    String respBody = response.getBody();
+                    LOG.info("response body is:{}", respBody);
+                    if (isNotBlank(respBody)) {
+                        resp = convertXmlStrToObject(YdApplyResponses.class, respBody);
+                    } else {
+                        LOG.error("failed to get create response from yunda platform:{}", request);
+                    }
                 } else {
-                    LOG.error("failed to get create response from yunda platform:{}", request);
+                    LOG.error("response is null");
                 }
             } catch (UnsupportedEncodingException ex) {
                 LOG.error("failed to base64 request:{}", ex.getMessage());
@@ -347,22 +375,42 @@ public final class YundaUtil {
             String validation = genValidation(plat);
             String url = genUrl(plat, props);
             try {
-                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
+                /*UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
                         .queryParam("traderId", plat.getSiteCode())
                         .queryParam("buz_type", plat.getPartnerCode())
                         .queryParam("method", "global_order_create")
                         .queryParam("validation", validation)
                         .queryParam("version", VER)
-                        .queryParam("data", safeUrlBase64Encode(trim(convertToXml(request)).getBytes("UTF-8")))
-                        .queryParam("data_style", DATA_STYLE);
+                        .queryParam("data", safeUrlBase64Encode(unformat(trim(unescapeConvertToXml(request))).getBytes("UTF-8")))
+                        .queryParam("data_style", DATA_STYLE);*/
+                
+                MultiValueMap<String, Object> params = new LinkedMultiValueMap<>();
+                params.add("traderId", plat.getSiteCode());
+                params.add("buz_type", plat.getPartnerCode());
+                params.add("method", "global_order_create");
+                params.add("validation", validation);
+                params.add("version", VER);
+                params.add("data", safeUrlBase64Encode(unformat(trim(unescapeConvertToXml(request))).getBytes("UTF-8")));
+                params.add("data_style", DATA_STYLE);
+                
                 HttpHeaders headers = generateKjHeader();
-                headers.setContentType(new MediaType("text", "xml", Charset.forName("UTF-8")));
-                String response = template.postForObject(builder.build().encode().toUri(), new HttpEntity<>(headers), String.class);
+                //headers.setContentType(new MediaType("text", "xml", Charset.forName("UTF-8")));
+                headers.setContentType(new MediaType("application", "x-www-form-urlencoded", Charset.forName("UTF-8")));
+                HttpEntity entity = new HttpEntity<>(params, headers);
+                
+                //ResponseEntity<String> response = template.exchange(url, POST, new HttpEntity<>(headers), String.class);
+                ResponseEntity<String> response = template.exchange(url, POST, entity, String.class);
                 LOG.info("response:{}", response);
-                if (isNotBlank(response)) {
-                    resp = convertXmlStrToObject(YdCreateResponses.class, response);
+                if (nonNull(response)) {
+                    String respBody = response.getBody();
+                    LOG.info("response body is:{}", respBody);
+                    if (isNotBlank(respBody)) {
+                        resp = convertXmlStrToObject(YdCreateResponses.class, respBody);
+                    } else {
+                        LOG.error("failed to get create response from yunda platform:{}", request);
+                    }
                 } else {
-                    LOG.error("failed to get create response from yunda platform:{}", request);
+                    LOG.error("response is null");
                 }
             } catch (UnsupportedEncodingException ex) {
                 LOG.error("failed to base64 request:{}", ex.getMessage());
@@ -377,21 +425,38 @@ public final class YundaUtil {
             String validation = genValidation(plat);
             String url = genUrl(plat, props);
             try {
-                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
-                        .queryParam("traderId", plat.getSiteCode())
-                        .queryParam("buz_type", plat.getPartnerCode())
-                        .queryParam("validation", validation)
-                        .queryParam("version", VER)
-                        .queryParam("data", safeUrlBase64Encode(trim(convertToXml(request)).getBytes("UTF-8")))
-                        .queryParam("data_style", DATA_STYLE);
+//                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
+//                        .queryParam("traderId", plat.getSiteCode())
+//                        .queryParam("buz_type", plat.getPartnerCode())
+//                        .queryParam("validation", validation)
+//                        .queryParam("version", VER)
+//                        .queryParam("data", safeUrlBase64Encode(unformat(trim(unescapeConvertToXml(request))).getBytes("UTF-8")))
+//                        .queryParam("data_style", DATA_STYLE);
+                MultiValueMap<String, Object> params = new LinkedMultiValueMap<>();
+                params.add("traderId", plat.getSiteCode());
+                params.add("buz_type", plat.getPartnerCode());
+                params.add("validation", validation);
+                params.add("version", VER);
+                params.add("data", safeUrlBase64Encode(unformat(trim(unescapeConvertToXml(request))).getBytes("UTF-8")));
+                params.add("data_style", DATA_STYLE);
                 HttpHeaders headers = generateKjHeader();
-                headers.setContentType(new MediaType("text", "xml", Charset.forName("UTF-8")));
-                String response = template.postForObject(builder.build().encode().toUri(), new HttpEntity<>(headers), String.class);
+                //headers.setContentType(new MediaType("text", "xml", Charset.forName("UTF-8")));                headers.setContentType(new MediaType("application", "x-www-form-urlencoded", Charset.forName("UTF-8")));
+                headers.setContentType(new MediaType("application", "x-www-form-urlencoded", Charset.forName("UTF-8")));
+                HttpEntity entity = new HttpEntity<>(params, headers);
+                
+                //ResponseEntity<String> response = template.exchange(url, POST, new HttpEntity<>(headers), String.class);
+                ResponseEntity<String> response = template.exchange(url, POST, entity, String.class);
                 LOG.info("response:{}", response);
-                if (isNotBlank(response)) {
-                    resp = convertXmlStrToObject(YdUpdateResponses.class, response);
+                if (nonNull(response)) {
+                    String respBody = response.getBody();
+                    LOG.info("response body is:{}", respBody);
+                    if (isNotBlank(respBody)) {
+                        resp = convertXmlStrToObject(YdUpdateResponses.class, respBody);
+                    } else {
+                        LOG.error("failed to get update response from yunda platform:{}", request);
+                    }
                 } else {
-                    LOG.error("failed to get update response from yunda platform:{}", request);
+                    LOG.error("response is null");
                 }
             } catch (UnsupportedEncodingException ex) {
                 LOG.error("failed to base64 request:{}", ex.getMessage());
@@ -403,25 +468,42 @@ public final class YundaUtil {
     public static YdQueryResponses trace(YdQueryRequest request, RestTemplate template, WuliuKjPlat plat, YundaKjProperties props) {
         YdQueryResponses resp = null;
         if (nonNull(request) && nonNull(template) && nonNull(plat) && nonNull(props)) {
-            LOG.info("trace request:{}", trim(convertToXml(request)));
+            LOG.info("trace request:{}", trim(unescapeConvertToXml(request)));
             String validation = genValidation(plat);
             String url = genUrl(plat, props);
             try {
-                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
-                        .queryParam("traderId", plat.getSiteCode())
-                        .queryParam("buz_type", plat.getPartnerCode())
-                        .queryParam("validation", validation)
-                        .queryParam("version", VER)
-                        .queryParam("data", safeUrlBase64Encode(trim(convertToXml(request)).getBytes("UTF-8")))
-                        .queryParam("data_style", DATA_STYLE);
+//                UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(url)
+//                        .queryParam("traderId", plat.getSiteCode())
+//                        .queryParam("buz_type", plat.getPartnerCode())
+//                        .queryParam("validation", validation)
+//                        .queryParam("version", VER)
+//                        .queryParam("data", safeUrlBase64Encode(unformat(trim(unescapeConvertToXml(request))).getBytes("UTF-8")))
+//                        .queryParam("data_style", DATA_STYLE);
+                MultiValueMap<String, Object> params = new LinkedMultiValueMap<>();
+                params.add("traderId", plat.getSiteCode());
+                params.add("buz_type", plat.getPartnerCode());
+                params.add("validation", validation);
+                params.add("version", VER);
+                params.add("data", safeUrlBase64Encode(unformat(trim(unescapeConvertToXml(request))).getBytes("UTF-8")));
+                params.add("data_style", DATA_STYLE);
+                
                 HttpHeaders headers = generateKjHeader();
-                headers.setContentType(new MediaType("text", "xml", Charset.forName("UTF-8")));
-                String response = template.postForObject(builder.build().encode().toUri(), new HttpEntity<>(headers), String.class);
+                //headers.setContentType(new MediaType("text", "xml", Charset.forName("UTF-8")));                headers.setContentType(new MediaType("application", "x-www-form-urlencoded", Charset.forName("UTF-8")));
+                headers.setContentType(new MediaType("application", "x-www-form-urlencoded", Charset.forName("UTF-8")));
+                HttpEntity entity = new HttpEntity<>(params, headers);
+                //ResponseEntity<String> response = template.exchange(builder.build().encode().toUri(), POST, new HttpEntity<>(headers), String.class);
+                ResponseEntity<String> response = template.exchange(url, POST, entity, String.class);
                 LOG.info("response:{}", response);
-                if (isNotBlank(response)) {
-                    resp = convertXmlStrToObject(YdQueryResponses.class, response);
+                if (nonNull(response)) {
+                    String respBody = response.getBody();
+                    LOG.info("response body is:{}", respBody);
+                    if (isNotBlank(respBody)) {
+                        resp = convertXmlStrToObject(YdQueryResponses.class, respBody);
+                    } else {
+                        LOG.error("failed to get query response from yunda platform:{}", request);
+                    }
                 } else {
-                    LOG.error("failed to get query response from yunda platform:{}", request);
+                    LOG.error("response is null");
                 }
             } catch (UnsupportedEncodingException ex) {
                 LOG.error("failed to base64 request:{}", ex.getMessage());

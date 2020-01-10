@@ -10,6 +10,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.exception.BusinessException;
 import static com.ruoyi.common.utils.DateUtil.addDays;
+import static com.ruoyi.common.utils.DateUtil.format;
 import static com.ruoyi.common.utils.DateUtils.getMonthFirstDay;
 import com.ruoyi.common.utils.JsonUtil;
 import static com.ruoyi.common.utils.ServletUtils.compAbsoluteUrl;
@@ -46,9 +47,13 @@ import static com.ruoyi.system.enums.YouzanMenu.YOUZAN_MENU_LIST;
 import com.ruoyi.system.service.ISysMenuService;
 import com.ruoyi.yz.customs.order.CEB311Message;
 import com.ruoyi.yz.domain.MvStockCusEntity;
+import static com.ruoyi.yz.domain.excel.XlsOrderHelper.getListOfTemplateSheetNames;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_APPLYING;
 import com.ruoyi.yz.service.MvGoodsService;
 import com.ruoyi.yz.service.MvStockCusService;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -56,14 +61,18 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import net.sf.jett.transform.ExcelTransformer;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.IteratorUtils;
 import org.apache.commons.collections4.MapUtils;
 import static org.apache.commons.collections4.MapUtils.getString;
-import org.apache.commons.lang.time.DateUtils;
 import static org.apache.commons.lang3.StringUtils.equalsIgnoreCase;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
+import org.apache.poi.EncryptedDocumentException;
+import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
+import org.apache.poi.ss.usermodel.Workbook;
 import org.springframework.ui.ModelMap;
 import org.springframework.web.bind.annotation.RequestParam;
 
@@ -189,7 +198,7 @@ public class CustomsYouzanController extends BaseController {
     public String view(ModelMap mmap) {
         YouzanOrder order = new YouzanOrder();
         Date currentTime = Calendar.getInstance().getTime();
-        order.setCreateTime(DateUtils.addDays(currentTime, -1));
+        order.setCreateTime(addDays(currentTime, -7));
         order.setUpdateTime(currentTime);
         mmap.put("order", order);
         return YOUZAN_PREFIX + "/order";
@@ -217,10 +226,45 @@ public class CustomsYouzanController extends BaseController {
     public String pull(ModelMap mmap) {
         Date currentTime = Calendar.getInstance().getTime();
         YouzanOrder order = new YouzanOrder();
-        order.setCreateTime(addDays(currentTime, -1));
+        order.setCreateTime(addDays(currentTime, -7));
         order.setUpdateTime(currentTime);
         mmap.put("order", order);
         return YOUZAN_PREFIX + "/pull";
+    }
+
+    @RequiresPermissions("customs:youzan:export")
+    @PostMapping("/export")
+    @ResponseBody
+    public void export(String ids, HttpServletResponse response) {
+        SysUser sysUser = getSysUser();
+        if (isNotBlank(ids) && nonNull(sysUser)) {
+            response.setContentType("application/octet-stream:charset=utf-8");
+            response.setContentType("application/vnd.ms-excel");
+            String fileName = "erp-" + format(Calendar.getInstance().getTime(), "yyyyMMddHHmmss") + ".xls";
+            response.setHeader("Content-disposition", "attachment;filename=" + fileName);
+            response.setHeader("Set-Cookie", "fileDownload=true;path=/");
+            try (InputStream in = CustomsYouzanController.class.getResourceAsStream("/excel/erp.xls");
+                    BufferedOutputStream out = new BufferedOutputStream(response.getOutputStream())) {
+                if (nonNull(in) && nonNull(out)) {
+                    ExcelTransformer transformer = new ExcelTransformer();
+                    List<Map<String, Object>> retList = youzanOrderService.export(ids, sysUser.getKdtId());
+                    LOG.info("retList:{}", retList);
+                    Workbook workbook = transformer.transform(in, getListOfTemplateSheetNames(), getListOfTemplateSheetNames(), retList);
+                    if (nonNull(workbook)) {
+                        workbook.write(out);
+                        out.flush();
+                    } else {
+                        LOG.error("workbook is null, pls check it!");
+                    }
+                } else {
+                    LOG.error("failed to get in or out stream, in:{}, out:{}", in, out);
+                }
+            } catch (IOException | InvalidFormatException | EncryptedDocumentException ex1) {
+                LOG.error("failed to export excel file because:{}", ex1.getMessage());
+            }
+        } else {
+            LOG.error("failed to export excel");
+        }
     }
 
     /**
@@ -444,6 +488,57 @@ public class CustomsYouzanController extends BaseController {
         return info;
     }
 
+    @RequiresPermissions("customs:youzan:execute")
+    @PostMapping("/rowedit")
+    @ResponseBody
+    public AjaxResult rowedit(YouzanOrder order) {
+        AjaxResult result = null;
+        SysUser sysUser = getSysUser();
+        if (nonNull(sysUser) && nonNull(order)) {
+            try {
+                youzanOrderService.wuliuEdit(order);
+                result = success();
+            } catch (BusinessException ex) {
+                LOG.error("failed to update row column:{}", ex.getMessage());
+                result = error(ex.getMessage());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 订单清关重试
+     *
+     * @param ids
+     * @return
+     */
+    @RequiresPermissions("customs:youzan:execute")
+    @PostMapping("/exeretry/{ids}")
+    @ResponseBody
+    public AjaxResult retry(String ids) {
+        AjaxResult result = null;
+        SysUser sysUser = getSysUser();
+        if (nonNull(sysUser) && isNotBlank(ids)) {
+            try {
+                String kdtId = sysUser.getKdtId();
+                List<YouzanOrder> orders = youzanOrderService.exeRetry(split(ids, ','), kdtId);
+                if (isNotEmpty(orders)) {
+                    youzanOrderService.exeRetry(orders, kdtId);
+                    result = success();
+                } else {
+                    LOG.error("failed to update retrying orders");
+                    result = error("没有发现可重启清关的订单");
+                }
+            } catch (BusinessException ex) {
+                LOG.error("failed to send execute signal:{}", ex.getMessage());
+                result = error(ex.getMessage());
+            }
+        } else {
+            LOG.error("sys user is null or ids is empty, it's weired, ids:{}", ids);
+        }
+        return nonNull(result) ? result : error("系统错误，请联系管理员");
+    }
+
     /**
      * 订单清关
      *
@@ -599,7 +694,7 @@ public class CustomsYouzanController extends BaseController {
      * @return
      */
     @RequiresPermissions("customs:youzan:remove")
-    @PostMapping("/descard/{ids}")
+    @PostMapping("/discard/{ids}")
     @ResponseBody
     public AjaxResult descard(String ids) {
         AjaxResult result = null;

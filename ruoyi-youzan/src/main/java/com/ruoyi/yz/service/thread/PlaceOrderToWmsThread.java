@@ -10,7 +10,7 @@ import com.ruoyi.yz.domain.YouzanKdt;
 import com.ruoyi.yz.domain.YouzanOrder;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_INIT;
 import static com.ruoyi.yz.enums.OrderStatus.STATUS_WAITING;
-import com.ruoyi.yz.mapper.YouzanOrderMapper;
+import com.ruoyi.yz.service.YouzanOrderService;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -46,7 +46,7 @@ public class PlaceOrderToWmsThread implements Callable<Integer> {
     private YouzanKdt kdt;
 
     @Autowired
-    private YouzanOrderMapper youzanOrderMapper;
+    private YouzanOrderService youzanOrderService;
 
     @Autowired
     private ThreadPoolTaskExecutor executor;
@@ -66,7 +66,7 @@ public class PlaceOrderToWmsThread implements Callable<Integer> {
                 put("endTime", endTime);
                 put("authId", kdt.getAuthorityId());
             }};
-            List<YouzanOrder> orders = youzanOrderMapper.getInitOrdersOfKdt(params);
+            List<YouzanOrder> orders = youzanOrderService.getInitOrdersOfKdt(params);
             if (isNotEmpty(orders)) {
                 Date currentTime = Calendar.getInstance().getTime();
                 List<YouzanOrder> needUpdateList = new ArrayList<>();
@@ -85,7 +85,7 @@ public class PlaceOrderToWmsThread implements Callable<Integer> {
                 });
                 LOG.info("clear orders length:{}, need update orders length:{}", size(orders), size(needUpdateList));
                 if (nonNull(needUpdateList)) {
-                    retLen += youzanOrderMapper.batchUpdate(needUpdateList);
+                    retLen += youzanOrderService.batchUpdate(needUpdateList);
                     needUpdateList.forEach((od) -> {
                         if (nonNull(od)) {
                             executor.submit(new SendEmailThread(kdt, od.getTid()));

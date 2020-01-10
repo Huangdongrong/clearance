@@ -110,4 +110,9 @@ public final class Const {
      * 默认清关错误
      */
     public static final ClearanceStatus DEFAULT_CLEARANCE_ERROR_STATUS = new ClearanceStatus(RUOYI_INTERNAL_ERROR, false, "default error");
+
+    /**
+     * 韵达清关商品名称最大长度
+     */
+    public static final int YUNDA_GOOD_NAME_MAX_LENGTH = 188;
 }
