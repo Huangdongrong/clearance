@@ -42,7 +42,8 @@
         <jaxb.version>2.3.0.1</jaxb.version>
         <eclipse.version>2.7.4</eclipse.version>
         <tuckey.version>4.0.4</tuckey.version>
-        <repo.url>192.168.1.239:7071</repo.url>
+        <jett.version>0.11.0</jett.version>
+        <repo.url>106.12.187.249:7071</repo.url>
     </properties>
     <distributionManagement>
         <repository>
@@ -366,6 +367,12 @@
                 <version>${eclipse.version}</version>
             </dependency>
 
+            <!--export excel -->
+            <dependency>
+                <groupId>net.sf.jett</groupId>
+                <artifactId>jett-core</artifactId>
+                <version>${jett.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
